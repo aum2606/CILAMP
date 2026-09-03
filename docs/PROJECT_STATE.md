@@ -112,7 +112,7 @@ No cloud SDK is invoked and no cloud resource was read or modified.
 
 ## Last Relevant Git Commit
 
-**Commit:** Pending Phase 0 milestone commit at the time of this state update
+**Commit:** `8961c75`
 
 **Message:** `feat(phase-0): establish project foundation`
 
