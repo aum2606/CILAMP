@@ -1,0 +1,51 @@
+# Python caches and tooling
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.test-tmp/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+credentials.json
+secrets.json
+.streamlit/secrets.toml
+
+# Local runtime data
+data/*.db
+data/*.db-*
+data/*.sqlite
+data/*.sqlite3
+logs/
+
+# Terraform state and local overrides (future phases)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# IDE and operating system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
