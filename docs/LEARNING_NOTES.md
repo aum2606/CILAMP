@@ -647,6 +647,45 @@ If counts are missing, check SQLite health and rerun the application so idempote
 
 ---
 
+# 25. Phase 2 — Implemented Joiner-Mover-Leaver Operations
+
+## What It Is
+
+Joiner-Mover-Leaver is the operational lifecycle for creating an identity, changing justified access as the employee's business role changes, and disabling the identity when employment ends.
+
+## Why Enterprises Use It
+
+Identity risk often comes from delayed onboarding, incorrect manual grants, retained access after transfers, and incomplete offboarding. A controlled JML process makes access consistent and auditable throughout employment.
+
+## Where It Is Implemented
+
+- `src/cilamp/lifecycle.py`: pure transition planning and access differences.
+- `src/cilamp/lifecycle_service.py`: validation and orchestration.
+- `src/cilamp/repository.py`: actual assignments, transactions, stale-preview checks, and correlated audit events.
+- `dashboard/app.py`: Joiner, Mover, Leaver, confirmation, result, and audit timeline UI.
+
+## How to Demonstrate It Manually
+
+1. Create a fictional Developer through Joiner and inspect granted access and audit actions.
+2. Move that identity to Finance Analyst and explain the access-to-remove and access-to-add preview.
+3. Confirm the Mover and verify Engineering/GitHub access disappeared before Finance access was granted.
+4. Preview Leaver and show every assignment that will be revoked.
+5. Confirm Leaver, then show `DISABLED`, empty access, and the correlation-linked audit timeline.
+
+## Safe Failure Scenario
+
+Preview moving an employee to the role they already hold. The system rejects the no-op. Another safe scenario is previewing an operation, changing the same identity through a separate operation, then attempting the old plan; stale-state validation rejects it.
+
+## Troubleshooting
+
+Start with the correlation ID. Check the plan's before state, removal set, addition set, employee status, and ordered audit actions. For a Mover, verify obsolete permissions were revoked before any permission grant. For a Leaver, verify both disabled status and empty assignment tables; either condition alone is incomplete offboarding.
+
+## Interview Explanation
+
+> I implemented provider-independent JML workflows with an explicit preview and confirmation boundary. Joiners receive only role-derived access, Movers remove obsolete and excessive access before adding the destination role, and Leavers are disabled with all assignments revoked. Each operation is transactional in simulation mode and produces correlated audit events for traceability.
+
+---
+
 # Concepts Still To Be Added
 
 Claude/Codex should add detailed notes as these are implemented:

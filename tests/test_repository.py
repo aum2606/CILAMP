@@ -26,6 +26,8 @@ def test_organization_seed_is_complete_and_idempotent() -> None:
 
         assert counts == {
             "employees": 500,
+            "active": 500,
+            "disabled": 0,
             "departments": 6,
             "roles": 10,
             "groups": 13,

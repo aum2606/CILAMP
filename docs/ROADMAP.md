@@ -146,7 +146,7 @@ Display:
 
 # Phase 2 — Joiner-Mover-Leaver Engine
 
-**Status:** NOT STARTED
+**Status:** COMPLETE
 
 ## Goal
 
@@ -196,16 +196,16 @@ Create **JML Operations Console** with:
 
 ## Acceptance Criteria
 
-- [ ] Joiner receives expected access.
-- [ ] Joiner receives no unrelated access.
-- [ ] Mover loses old access.
-- [ ] Mover receives correct new access.
-- [ ] Privilege creep is prevented.
-- [ ] Leaver is disabled.
-- [ ] Leaver access is removed.
-- [ ] Audit records exist.
-- [ ] Tests pass.
-- [ ] Git milestone committed.
+- [x] Joiner receives expected access.
+- [x] Joiner receives no unrelated access.
+- [x] Mover loses old access.
+- [x] Mover receives correct new access.
+- [x] Privilege creep is prevented.
+- [x] Leaver is disabled.
+- [x] Leaver access is removed.
+- [x] Audit records exist.
+- [x] Tests pass.
+- [x] Git milestone committed.
 
 ---
 

@@ -359,6 +359,8 @@ CILAMP/
 │   ├── database.py           SQLite initialization and health
 │   ├── domain.py             Provider-independent identity/access objects
 │   ├── iam_catalog.py        Authoritative expected-access catalog
+│   ├── lifecycle.py          Provider-independent JML planning rules
+│   ├── lifecycle_service.py  Input validation and operation coordination
 │   ├── organization.py       Deterministic fictional HR source
 │   ├── repository.py         Organization persistence and queries
 │   └── project_status.py     Phase/module presentation metadata
@@ -381,7 +383,7 @@ SQLite idempotent initialization
 Database/system/module health presentation
 ```
 
-The Phase 1 database uses schema version 2 and contains normalized catalogs for departments, roles, groups, applications, permissions, and their role mappings. A deterministic seed creates exactly 500 fictional active employees. Initialization is idempotent and migrates a Phase 0 employee table by adding the email field without deleting existing rows.
+The Phase 2 database uses schema version 3. It contains normalized catalogs, actual employee assignment tables, and lifecycle audit events. A deterministic seed creates exactly 500 fictional active employees and grants their initial role access once. The seed marker prevents a future application restart from restoring access revoked by a Leaver operation.
 
 ## 9.2 Phase 1 Runtime Flow
 
@@ -399,6 +401,28 @@ Authoritative IAM catalog
 ```
 
 `domain.py` defines provider-independent identity and access objects. `iam_catalog.py` defines expected access policy, `organization.py` creates fictional source identities, and `repository.py` owns SQLite persistence and queries. No Microsoft, Azure, or AWS APIs are present.
+
+## 9.3 Phase 2 Lifecycle Flow
+
+```text
+Operator input
+     ↓
+Provider-independent preview plan
+     ├── identity before / after
+     ├── access to remove
+     └── access to add
+     ↓ explicit confirmation
+Transactional local execution
+     ├── Joiner: create → grant
+     ├── Mover: revoke → update → grant
+     └── Leaver: disable → revoke all
+     ↓
+Correlated audit events + resulting identity
+```
+
+`lifecycle.py` owns transition and access-difference rules. `lifecycle_service.py` validates application input and coordinates persistence. `repository.py` applies a confirmed plan atomically and rejects stale previews if persisted identity or access state changed. The execution layer contains no cloud-provider calls.
+
+Expected role access and actual assigned access are now distinct. That distinction is foundational for Phase 3 access review.
 
 ---
 

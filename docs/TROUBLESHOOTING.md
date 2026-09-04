@@ -369,7 +369,29 @@ Rule:
 
 ---
 
-# 18. Incident Record Template
+# 18. Lifecycle Preview Is Stale
+
+## Symptom
+
+Execution reports that identity state changed after preview.
+
+## Cause
+
+The employee record or actual assignments changed between preview and confirmation. Applying the old plan could overwrite a newer lifecycle decision.
+
+## Resolution
+
+1. Do not bypass the conflict.
+2. Reopen the employee and inspect current status and access.
+3. Generate a new Joiner, Mover, or Leaver preview.
+4. Confirm the new removal/addition sets are still justified.
+5. Execute the new plan and retain its correlation ID.
+
+This is an optimistic concurrency safety control, not a reason to broaden permissions.
+
+---
+
+# 19. Incident Record Template
 
 Use this section when a real development issue occurs.
 
@@ -404,7 +426,7 @@ What should prevent recurrence?
 
 ---
 
-# 19. Current Incidents
+# 20. Current Incidents
 
 ## INCIDENT-001 — Pytest Temporary Directory Denied in Managed Windows Sandbox
 

@@ -369,3 +369,37 @@ The population is representative rather than statistically realistic, and all Ph
 ## Consequences
 
 Changes to roles or seeded distributions require corresponding IAM documentation and tests. Random access assignment and direct user grants must not be introduced as default behavior.
+
+---
+
+# ADR-014 — Previewed, Transactional Lifecycle Operations
+
+**Date:** 2026-09-04
+
+**Status:** ACCEPTED
+
+## Context
+
+JML operations change identity state and multiple access assignments. Operators need to understand the impact before execution, Movers must not accumulate access, and partial changes must not leave an identity inconsistent.
+
+## Options Considered
+
+1. Apply changes immediately from each form.
+2. Preview changes but execute each assignment independently.
+3. Build a provider-independent plan, require confirmation, and apply it atomically.
+
+## Decision
+
+Every Phase 2 operation produces a before/after plan and explicit access deltas. The dashboard requires confirmation, and the repository executes the plan in one transaction with correlated audit events. Mover revocations occur before grants.
+
+## Reason
+
+This makes least privilege visible, prevents partial local state, supports troubleshooting, and mirrors the change-control discipline expected for later cloud integrations.
+
+## Trade-offs
+
+The local transaction cannot guarantee atomicity across future cloud APIs. Live connectors will require compensating actions, reconciliation, idempotency, and truthful partial-failure reporting.
+
+## Consequences
+
+Cloud connectors must consume approved lifecycle intent without embedding or redefining the JML business rules. A stale preview must be regenerated before execution.

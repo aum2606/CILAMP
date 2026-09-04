@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 PROJECT_NAME = "Cloud Identity Lifecycle & Access Management Platform"
 PROJECT_SHORT_NAME = "CILAMP"
-CURRENT_PHASE = "Phase 1 — Organization & IAM Model"
+CURRENT_PHASE = "Phase 2 — Joiner-Mover-Leaver Engine"
 
 
 @dataclass(frozen=True)
@@ -19,9 +19,9 @@ class ModuleStatus:
 
 MODULE_STATUSES = (
     ModuleStatus("Organization Model", "Complete", "Employees, roles, groups, and applications"),
-    ModuleStatus("JML Engine", "Not Started", "Joiner, Mover, and Leaver workflows"),
+    ModuleStatus("JML Engine", "Complete", "Joiner, Mover, and Leaver workflows"),
     ModuleStatus("RBAC", "Not Started", "Role-based access and least-privilege checks"),
-    ModuleStatus("Audit", "Not Started", "Identity and access event history"),
+    ModuleStatus("Audit", "Foundation Added", "Lifecycle audit events; full center in Phase 4"),
     ModuleStatus("Entra ID", "Not Connected", "Microsoft identity lab connector"),
     ModuleStatus("Azure", "Not Connected", "Azure RBAC and workload identity"),
     ModuleStatus("AWS", "Not Connected", "AWS IAM roles and policies"),
@@ -30,9 +30,9 @@ MODULE_STATUSES = (
 
 
 RECENT_MILESTONES = (
+    "Simulated Joiner, Mover, and Leaver workflows implemented",
+    "Removal-before-grant mover logic and lifecycle audit trail added",
     "Organization and IAM model created for 500 fictional employees",
-    "Role-to-group-to-application-to-permission access matrix implemented",
-    "Phase 0 repository and security guardrails established",
 )
 
 

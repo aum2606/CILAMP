@@ -51,6 +51,19 @@ Phase 1 is now available:
 
 Be explicit that the data is simulated and that Entra ID, Azure, and AWS remain disconnected.
 
+## Phase 2 JML Demo
+
+Phase 2 is now available in **JML Operations**:
+
+1. **Joiner:** enter fictional information, select a department-compatible role, preview all grants, confirm, and show the resulting identity and audit actions.
+2. **Mover:** select an active identity, choose a new department/role, and pause on the preview. Explain why obsolete access is removed before new access is granted. Confirm and show the final profile.
+3. **Leaver:** select an active identity, preview every revocation, confirm, and show the disabled account with empty groups, applications, and permissions.
+4. **Audit Timeline:** identify one operation by its correlation ID and show its ordered security-relevant actions.
+
+Recommended narrative:
+
+> The business role defines expected access. The lifecycle engine calculates the difference from actual access, requires confirmation, applies the safe transition, and records evidence. Everything shown is local simulation; no cloud directory or resource is modified.
+
 ## Demo 1 — Overview
 
 Show:

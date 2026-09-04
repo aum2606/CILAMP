@@ -300,6 +300,19 @@ These controls are verified by automated tests where practical.
 
 Phase 1 models expected access. Detection and remediation of actual-vs-expected access belongs to Phase 3.
 
+## 13.3 Phase 2 Lifecycle Controls
+
+- All JML writes remain local and require an explicit UI confirmation after preview.
+- Joiner validates role compatibility, fictional email format, uniqueness, and active starting status.
+- Mover calculates set differences from actual access to desired role access and revokes obsolete permissions before granting new permissions.
+- Any excessive actual access not justified by the destination role appears in `to_remove` and is revoked, preventing privilege creep.
+- Leaver disables the account and removes every actual group, application, and permission assignment while preserving the identity record.
+- Execution occurs in one SQLite transaction and rejects stale previews whose underlying identity/access changed.
+- Every security-relevant step records actor, target, action, old/new state, result, reason, timestamp, event ID, and correlation ID.
+- Initialization never regrants access previously removed by a Leaver operation.
+
+Phase 2 audit presentation is scoped to lifecycle operations. Cross-system security events, filters, troubleshooting, and the full Security & Audit Center belong to Phase 4.
+
 ---
 
 # 14. Logging Rules
