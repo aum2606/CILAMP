@@ -143,7 +143,7 @@ No cloud SDK is invoked and no cloud resource was read or modified.
 
 ## Last Relevant Git Commit
 
-**Commit:** Pending Phase 4 milestone commit at the time of this state update
+**Commit:** `2d29e52`
 
 **Message:** `feat(phase-4): implement security and audit center`
 
