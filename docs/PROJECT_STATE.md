@@ -137,7 +137,7 @@ No cloud SDK is invoked and no cloud resource was read or modified.
 
 ## Last Relevant Git Commit
 
-**Commit:** Pending Phase 2 milestone commit at the time of this state update
+**Commit:** `ac7911b`
 
 **Message:** `feat(phase-2): implement JML lifecycle operations`
 
