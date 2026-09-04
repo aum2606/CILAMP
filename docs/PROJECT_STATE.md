@@ -136,7 +136,7 @@ No cloud SDK is invoked and no cloud resource was read or modified.
 
 ## Last Relevant Git Commit
 
-**Commit:** Pending Phase 3 milestone commit at the time of this state update
+**Commit:** `33ba63b`
 
 **Message:** `feat(phase-3): implement RBAC access review`
 
