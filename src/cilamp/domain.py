@@ -93,3 +93,40 @@ class AuditEvent:
     result: str
     reason: str
     correlation_id: str
+
+
+class RiskLevel(StrEnum):
+    CRITICAL = "CRITICAL"
+    HIGH = "HIGH"
+    MEDIUM = "MEDIUM"
+
+
+@dataclass(frozen=True)
+class AccessFinding:
+    category: str
+    risk: RiskLevel
+    entitlement_type: str
+    entitlement: str
+    explanation: str
+    suggested_remediation: str
+
+
+@dataclass(frozen=True)
+class AccessReview:
+    employee: Employee
+    expected: EffectiveAccess
+    actual: EffectiveAccess
+    findings: tuple[AccessFinding, ...]
+    privileged: bool
+
+    @property
+    def compliant(self) -> bool:
+        return not self.findings
+
+    @property
+    def privilege_creep(self) -> bool:
+        return any(
+            finding.category
+            in {"EXCESSIVE_PRIVILEGE", "PRIVILEGE_CREEP", "UNAUTHORIZED_ACCESS"}
+            for finding in self.findings
+        )

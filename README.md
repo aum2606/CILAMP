@@ -4,7 +4,7 @@
 
 CILAMP is a simulation-first Cloud/IAM portfolio project. It will demonstrate employee identity lifecycle management, RBAC, least privilege, access review, auditability, and later safe lab integrations with Microsoft Entra ID, Azure, and AWS.
 
-The repository is currently at **Phase 2 — Joiner-Mover-Leaver Engine**. It contains 500 deterministic fictional employees, a role-driven access catalog, and confirmed simulation workflows for onboarding, role/department changes, and offboarding. No cloud APIs are connected and no live resources are modified.
+The repository is currently at **Phase 3 — RBAC & Access Review**. It contains 500 deterministic fictional employees, JML lifecycle operations, expected-versus-actual access evaluation, deliberate security scenarios, and confirmed simulation remediation. No cloud APIs are connected and no live resources are modified.
 
 ## Quick start
 
@@ -27,7 +27,7 @@ The dashboard creates a local SQLite database at `data/cilamp.db`. That runtime 
 python -m pytest
 ```
 
-The tests validate configuration safety, database migration/health, organization generation, least-privilege mappings, JML previews and execution, access revocation/grant order, audit correlation, repository behavior, and headless rendering of every dashboard page.
+The tests validate configuration safety, organization and JML behavior, expected/actual access evaluation, least-privilege findings, privileged identities, deliberate scenarios, remediation safety, audit evidence, repository behavior, and headless rendering of every dashboard page.
 
 ## Repository layout
 
@@ -46,4 +46,5 @@ Read `docs/PROJECT_STATE.md` for the exact project status and next approved task
 - **Overview:** organization counts, department/role distributions, health, and roadmap.
 - **Organization Explorer:** employee search, department/role/status filters, and access profiles.
 - **JML Operations:** preview, confirm, and execute simulated Joiner, Mover, and Leaver changes with audit results.
+- **Access Review:** inspect expected versus actual access, risk-rated findings, access sources, privileged identities, and confirmed remediation.
 - **Access Matrix:** role → groups → applications → permissions, plus catalogs and privileged-role indicators.

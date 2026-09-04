@@ -28,7 +28,7 @@ The demo should focus on the business problem and security value rather than cod
 
 ## Phase 0 Foundation Demo
 
-Until Phase 1 is approved and implemented, demonstrate only the Project Control Center:
+Use this section when explaining the original Phase 0 foundation:
 
 1. Start the dashboard and identify the `SIMULATION` mode badge.
 2. Show `Phase 0 — Foundation` and explain that no cloud writes are possible.
@@ -36,7 +36,7 @@ Until Phase 1 is approved and implemented, demonstrate only the Project Control 
 4. Show zero employees and explain that the organization model intentionally belongs to Phase 1.
 5. Show every future IAM capability as not started/not connected.
 
-Do not demonstrate the later workflows below as if they already exist; they are the planned final-project story.
+Then continue to the implemented Phase 1–3 demonstrations below.
 
 ## Phase 1 Organization Demo
 
@@ -63,6 +63,20 @@ Phase 2 is now available in **JML Operations**:
 Recommended narrative:
 
 > The business role defines expected access. The lifecycle engine calculates the difference from actual access, requires confirmation, applies the safe transition, and records evidence. Everything shown is local simulation; no cloud directory or resource is modified.
+
+## Phase 3 Access Review Demo
+
+1. Open **Access Review** and show the clean compliance, findings, critical, and privileged-identity metrics.
+2. Expand **Create mandatory excessive-privilege scenario**.
+3. Select a Developer, confirm, and grant the simulated `platform.administrator` permission.
+4. Inspect Expected Access, Actual Access, Differences, and Access Sources.
+5. Highlight `CRITICAL`, `EXCESSIVE_PRIVILEGE`, the explanation, and suggested remediation.
+6. Confirm **Remediate to Role Baseline**.
+7. Show the identity is compliant and correlate the operation in the audit timeline.
+
+Explain:
+
+> The review engine does not trust job title alone. It compares policy with actual assignments. The Developer's Administrator permission is outside the approved baseline, so it is flagged as critical and removed through an audited remediation.
 
 ## Demo 1 — Overview
 

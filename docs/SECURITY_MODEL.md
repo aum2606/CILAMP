@@ -298,7 +298,7 @@ These controls are verified by automated tests where practical.
 - Privileged roles are explicitly marked for later access-review handling.
 - Search query values are parameterized; the only dynamically selected distribution columns come from a fixed allowlist.
 
-Phase 1 models expected access. Detection and remediation of actual-vs-expected access belongs to Phase 3.
+Phase 1 established expected access. Phase 3 now implements detection and remediation of actual-versus-expected differences.
 
 ## 13.3 Phase 2 Lifecycle Controls
 
@@ -312,6 +312,20 @@ Phase 1 models expected access. Detection and remediation of actual-vs-expected 
 - Initialization never regrants access previously removed by a Leaver operation.
 
 Phase 2 audit presentation is scoped to lifecycle operations. Cross-system security events, filters, troubleshooting, and the full Security & Audit Center belong to Phase 4.
+
+## 13.4 Phase 3 Access Review Controls
+
+- Expected access is calculated from identity status and the authoritative role catalog.
+- Actual access is read independently from persisted group, application, and permission assignments.
+- Disabled identities have an empty expected-access baseline.
+- Unexpected privileged permissions/groups/applications are `CRITICAL`; other unauthorized or stale access is `HIGH`; missing required access is `MEDIUM`.
+- `platform.administrator` is a simulation-only permission that no standard role receives.
+- Creating the mandatory Developer→Administrator scenario requires explicit confirmation and produces an audit event.
+- Remediation removes excess assignments and restores missing approved assignments without changing the employee's role.
+- Remediation requires confirmation, executes transactionally, records correlated evidence, and rejects stale reviews.
+- Access-source explanations distinguish role/group-policy access from direct or stale assignments.
+
+Phase 3 does not claim that a local finding came from live Entra, Azure, or AWS state.
 
 ---
 

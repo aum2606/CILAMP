@@ -303,3 +303,9 @@ The deterministic simulation seed creates exactly 500 active fictional identitie
 | Marketing User | 75 |
 
 Employee IDs and emails are unique. Names are fictional and emails use `example.cilamp`; no real personal or cloud-directory data is present.
+
+## 9.4 Phase 3 Review-Only Permission
+
+`platform.administrator` represents an unrestricted Administrator permission solely for the mandatory excessive-privilege simulation. It is present in the permission catalog so the database can represent the violation, but it is assigned to no approved job role.
+
+The Access Review Center flags this permission as `CRITICAL` whenever it appears. It must never be interpreted as a real Azure, AWS, operating-system, or application administrator role.

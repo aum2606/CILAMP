@@ -211,7 +211,7 @@ Create **JML Operations Console** with:
 
 # Phase 3 — RBAC & Access Review
 
-**Status:** NOT STARTED
+**Status:** COMPLETE
 
 ## Goal
 
@@ -249,13 +249,13 @@ The system must flag it as excessive privilege.
 
 ## Acceptance Criteria
 
-- [ ] Policy evaluator works.
-- [ ] Valid access is accepted.
-- [ ] Excessive access is detected.
-- [ ] Expected vs actual access is visible.
-- [ ] Remediation works in simulation mode.
-- [ ] Tests pass.
-- [ ] Git milestone committed.
+- [x] Policy evaluator works.
+- [x] Valid access is accepted.
+- [x] Excessive access is detected.
+- [x] Expected vs actual access is visible.
+- [x] Remediation works in simulation mode.
+- [x] Tests pass.
+- [x] Git milestone committed.
 
 ---
 

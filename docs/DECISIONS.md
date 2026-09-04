@@ -403,3 +403,37 @@ The local transaction cannot guarantee atomicity across future cloud APIs. Live 
 ## Consequences
 
 Cloud connectors must consume approved lifecycle intent without embedding or redefining the JML business rules. A stale preview must be regenerated before execution.
+
+---
+
+# ADR-015 — Findings Are Derived from Current Expected vs Actual Access
+
+**Date:** 2026-09-04
+
+**Status:** ACCEPTED
+
+## Context
+
+Access review needs a reliable answer to whether an identity's assignments are justified. Persisting a separate finding record for every comparison could become stale whenever lifecycle or policy state changes.
+
+## Options Considered
+
+1. Store manually authored findings.
+2. Store every computed finding and synchronize it after all changes.
+3. Calculate findings from the authoritative role baseline and current assignments when reviewed.
+
+## Decision
+
+Phase 3 derives findings at review time. Remediation reconciles actual assignments to expected access in one transaction, requires confirmation, and records audit evidence rather than treating findings as authoritative state.
+
+## Reason
+
+The role catalog and actual assignments remain the two review inputs. Findings cannot silently outlive the state that produced them, and stale remediation is rejected.
+
+## Trade-offs
+
+Reviewing all 500 local identities performs more reads than loading a cached finding table. This is acceptable for the simulation scale. Phase 4 may persist security workflow metadata without replacing current-state evaluation.
+
+## Consequences
+
+Future cloud reviews must clearly identify the timestamp/source of actual state. Exceptions require an explicit design and justification rather than suppressing findings informally.

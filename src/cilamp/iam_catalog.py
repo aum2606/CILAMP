@@ -37,6 +37,10 @@ PERMISSIONS = (
     Permission("cloud.ops.scoped", "Administer approved infrastructure scopes"),
     Permission("security.audit", "Review identity and security telemetry"),
     Permission("marketing.manage", "Manage campaigns and approved content"),
+    Permission(
+        "platform.administrator",
+        "Simulated unrestricted administrator permission; never assigned by a standard role",
+    ),
 )
 
 ROLES = (

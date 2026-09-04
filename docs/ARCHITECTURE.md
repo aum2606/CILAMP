@@ -361,6 +361,8 @@ CILAMP/
 │   ├── iam_catalog.py        Authoritative expected-access catalog
 │   ├── lifecycle.py          Provider-independent JML planning rules
 │   ├── lifecycle_service.py  Input validation and operation coordination
+│   ├── policy.py             RBAC evaluation and access explanations
+│   ├── access_review_service.py  Review/scenario/remediation coordination
 │   ├── organization.py       Deterministic fictional HR source
 │   ├── repository.py         Organization persistence and queries
 │   └── project_status.py     Phase/module presentation metadata
@@ -422,7 +424,28 @@ Correlated audit events + resulting identity
 
 `lifecycle.py` owns transition and access-difference rules. `lifecycle_service.py` validates application input and coordinates persistence. `repository.py` applies a confirmed plan atomically and rejects stale previews if persisted identity or access state changed. The execution layer contains no cloud-provider calls.
 
-Expected role access and actual assigned access are now distinct. That distinction is foundational for Phase 3 access review.
+Expected role access and actual assigned access are distinct, enabling Phase 3 access review.
+
+## 9.4 Phase 3 Access Review Flow
+
+```text
+Job role + identity status                Persisted assignments
+          ↓                                       ↓
+   Expected access                          Actual access
+          └────────────── compare ────────────────┘
+                              ↓
+        match / excess / missing / unauthorized / stale
+                              ↓
+        risk + explanation + suggested remediation
+                              ↓ explicit confirmation
+             reconcile actual access to role baseline
+                              ↓
+                 correlated audit evidence
+```
+
+`policy.py` is a pure evaluation layer. It identifies excessive privilege, unauthorized groups/applications, stale permission/privilege creep, missing access, and privileged identities. `access_review_service.py` loads reviews and coordinates controlled scenarios/remediation. The repository applies remediation transactionally and rejects stale reviews.
+
+Findings are calculated from current state rather than stored as a second source of truth. Phase 4 may persist security-event workflow state when the Security & Audit Center requires it.
 
 ---
 

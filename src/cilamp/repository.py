@@ -459,18 +459,40 @@ def _json_access(access: EffectiveAccess) -> str:
 
 
 def _audit(connection, plan, actor, correlation_id, action, old_state, new_state) -> None:
+    _write_audit_event(
+        connection=connection,
+        actor=actor,
+        target_identity=plan.employee_id,
+        action=action,
+        old_state=old_state,
+        new_state=new_state,
+        reason=plan.reason,
+        correlation_id=correlation_id,
+    )
+
+
+def _write_audit_event(
+    connection: sqlite3.Connection,
+    actor: str,
+    target_identity: str,
+    action: str,
+    old_state: str,
+    new_state: str,
+    reason: str,
+    correlation_id: str,
+) -> None:
     connection.execute(
         "INSERT INTO audit_events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             str(uuid4()),
             datetime.now(timezone.utc).isoformat(),
             actor,
-            plan.employee_id,
+            target_identity,
             action,
             old_state,
             new_state,
             "SUCCESS",
-            plan.reason,
+            reason,
             correlation_id,
         ),
     )
@@ -529,3 +551,119 @@ def lifecycle_counts(path: Path) -> dict[str, int]:
             ).fetchone()[0]
             for operation in ("JOINER", "MOVER", "LEAVER")
         }
+
+
+def add_simulated_permission(
+    path: Path,
+    employee_id: str,
+    permission: str,
+    actor: str,
+    reason: str,
+) -> str:
+    """Create an explicit, audited policy-violation scenario."""
+
+    correlation_id = str(uuid4())
+    with closing(sqlite3.connect(path)) as connection:
+        connection.execute("PRAGMA foreign_keys = ON")
+        with connection:
+            employee = connection.execute(
+                "SELECT status FROM employees WHERE employee_id = ?", (employee_id,)
+            ).fetchone()
+            if employee is None:
+                raise LifecycleConflict("Employee does not exist.")
+            if employee[0] != EmployeeStatus.ACTIVE.value:
+                raise LifecycleConflict("Cannot create a scenario for a disabled employee.")
+            exists = connection.execute(
+                """
+                SELECT 1 FROM employee_permissions
+                WHERE employee_id = ? AND permission_name = ?
+                """,
+                (employee_id, permission),
+            ).fetchone()
+            if exists:
+                raise LifecycleConflict("The simulated permission is already assigned.")
+            connection.execute(
+                "INSERT INTO employee_permissions VALUES (?, ?)",
+                (employee_id, permission),
+            )
+            _write_audit_event(
+                connection,
+                actor,
+                employee_id,
+                "SIMULATION_VIOLATION_CREATED",
+                "null",
+                permission,
+                reason,
+                correlation_id,
+            )
+    return correlation_id
+
+
+def reconcile_access(
+    path: Path,
+    employee_id: str,
+    before: EffectiveAccess,
+    desired: EffectiveAccess,
+    actor: str,
+    reason: str,
+) -> str:
+    """Reconcile actual assignments to approved policy in one transaction."""
+
+    correlation_id = str(uuid4())
+    mappings = (
+        ("groups", "employee_groups", "group_name"),
+        ("applications", "employee_applications", "application_name"),
+        ("permissions", "employee_permissions", "permission_name"),
+    )
+    with closing(sqlite3.connect(path)) as connection:
+        connection.execute("PRAGMA foreign_keys = ON")
+        with connection:
+            current = _assigned_access_from_connection(connection, employee_id)
+            if current != before:
+                raise LifecycleConflict(
+                    "Access changed after review. Refresh the finding before remediation."
+                )
+            for field, table, column in mappings:
+                current_values = set(getattr(before, field))
+                desired_values = set(getattr(desired, field))
+                for value in sorted(current_values - desired_values):
+                    connection.execute(
+                        f"DELETE FROM {table} WHERE employee_id = ? AND {column} = ?",
+                        (employee_id, value),
+                    )
+                    _write_audit_event(
+                        connection,
+                        actor,
+                        employee_id,
+                        f"REMEDIATION_{field[:-1].upper()}_REMOVED",
+                        value,
+                        "null",
+                        reason,
+                        correlation_id,
+                    )
+                for value in sorted(desired_values - current_values):
+                    connection.execute(
+                        f"INSERT INTO {table}(employee_id, {column}) VALUES (?, ?)",
+                        (employee_id, value),
+                    )
+                    _write_audit_event(
+                        connection,
+                        actor,
+                        employee_id,
+                        f"REMEDIATION_{field[:-1].upper()}_RESTORED",
+                        "null",
+                        value,
+                        reason,
+                        correlation_id,
+                    )
+            _write_audit_event(
+                connection,
+                actor,
+                employee_id,
+                "ACCESS_REMEDIATED",
+                _json_access(before),
+                _json_access(desired),
+                reason,
+                correlation_id,
+            )
+    return correlation_id

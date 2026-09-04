@@ -391,7 +391,28 @@ This is an optimistic concurrency safety control, not a reason to broaden permis
 
 ---
 
-# 19. Incident Record Template
+# 19. Access Review Finding Looks Incorrect
+
+## Check
+
+1. Is the identity active or disabled?
+2. Is department/job role correct?
+3. What does the role catalog define as expected?
+4. Which groups, applications, and permissions are actually persisted?
+5. Does Access Sources label the assignment as expected or direct/stale?
+6. Was there a recent JML, scenario, or remediation correlation ID?
+
+Do not suppress the finding or broaden the role merely to make the dashboard green. Correct the role catalog only if the business policy itself is wrong; otherwise remediate actual access or document a future approved exception mechanism.
+
+---
+
+# 20. Remediation Review Is Stale
+
+Refresh the identity and generate a new review. The safety check means assignments changed after the displayed review, so the old reconciliation is no longer trustworthy. Inspect audit history before confirming the refreshed plan.
+
+---
+
+# 21. Incident Record Template
 
 Use this section when a real development issue occurs.
 
@@ -426,7 +447,7 @@ What should prevent recurrence?
 
 ---
 
-# 20. Current Incidents
+# 22. Current Incidents
 
 ## INCIDENT-001 — Pytest Temporary Directory Denied in Managed Windows Sandbox
 

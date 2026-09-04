@@ -7,7 +7,15 @@ import platform
 import streamlit as st
 
 from cilamp import __version__
+from cilamp.access_review_service import (
+    create_developer_admin_scenario,
+    remediate_employee,
+    review_all,
+    review_employee,
+    review_summary,
+)
 from cilamp.config import load_settings
+from cilamp.domain import RiskLevel
 from cilamp.database import check_database
 from cilamp.iam_catalog import (
     APPLICATIONS,
@@ -33,6 +41,7 @@ from cilamp.project_status import (
     RECENT_MILESTONES,
     completed_module_count,
 )
+from cilamp.policy import access_source_rows
 from cilamp.repository import (
     distribution,
     get_assigned_access,
@@ -92,7 +101,13 @@ counts = organization_counts(settings.database_path)
 st.sidebar.title("CILAMP")
 page = st.sidebar.radio(
     "Navigate",
-    ("Overview", "Organization Explorer", "JML Operations", "Access Matrix"),
+    (
+        "Overview",
+        "Organization Explorer",
+        "JML Operations",
+        "Access Review",
+        "Access Matrix",
+    ),
 )
 st.sidebar.markdown(f"**Mode:** `{settings.mode}`")
 st.sidebar.caption("Cloud integrations are disconnected")
@@ -140,6 +155,13 @@ def render_overview() -> None:
     joiner_col.metric("Joiner operations", lifecycle["JOINER"])
     mover_col.metric("Mover operations", lifecycle["MOVER"])
     leaver_col.metric("Leaver operations", lifecycle["LEAVER"])
+
+    access_summary = review_summary(review_all(settings.database_path))
+    compliant_col, findings_col, privileged_col, creep_col = st.columns(4)
+    compliant_col.metric("Compliant identities", access_summary["compliant"])
+    findings_col.metric("Access findings", access_summary["findings"])
+    privileged_col.metric("Privileged identities", access_summary["privileged"])
+    creep_col.metric("Privilege-creep identities", access_summary["privilege_creep"])
 
     chart_col, role_chart_col = st.columns(2)
     with chart_col:
@@ -542,12 +564,261 @@ def render_jml_operations() -> None:
             st.caption("No lifecycle events have been executed yet.")
 
 
+def _entitlement_comparison(review) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for label, expected_values, actual_values in (
+        ("Group", review.expected.groups, review.actual.groups),
+        ("Application", review.expected.applications, review.actual.applications),
+        ("Permission", review.expected.permissions, review.actual.permissions),
+    ):
+        for entitlement in sorted(set(expected_values) | set(actual_values)):
+            expected = entitlement in expected_values
+            actual = entitlement in actual_values
+            rows.append(
+                {
+                    "Type": label,
+                    "Entitlement": entitlement,
+                    "Expected": "Yes" if expected else "No",
+                    "Actual": "Yes" if actual else "No",
+                    "Assessment": (
+                        "MATCH"
+                        if expected == actual
+                        else "EXCESS"
+                        if actual
+                        else "MISSING"
+                    ),
+                }
+            )
+    return rows
+
+
+def _render_access_review_detail(review) -> None:
+    st.subheader(f"Access review · {review.employee.display_name}")
+    status_col, role_col, privilege_col = st.columns(3)
+    status_col.metric("Identity status", review.employee.status.value)
+    role_col.metric("Role", review.employee.job_role)
+    privilege_col.metric("Privileged identity", "YES" if review.privileged else "NO")
+
+    expected_tab, actual_tab, difference_tab, source_tab = st.tabs(
+        ("Expected Access", "Actual Access", "Differences", "Access Sources")
+    )
+    with expected_tab:
+        _access_columns(review.expected)
+    with actual_tab:
+        _access_columns(review.actual)
+    with difference_tab:
+        st.dataframe(
+            _entitlement_comparison(review), width="stretch", hide_index=True
+        )
+    with source_tab:
+        st.dataframe(access_source_rows(review), width="stretch", hide_index=True)
+
+    st.markdown("#### Violations and access gaps")
+    if review.compliant:
+        st.success("COMPLIANT · Actual access matches the approved role baseline.")
+        return
+
+    st.dataframe(
+        [
+            {
+                "Risk": finding.risk.value,
+                "Category": finding.category,
+                "Type": finding.entitlement_type,
+                "Entitlement": finding.entitlement,
+                "Why flagged": finding.explanation,
+                "Suggested remediation": finding.suggested_remediation,
+            }
+            for finding in review.findings
+        ],
+        width="stretch",
+        hide_index=True,
+    )
+    st.warning(
+        "Remediation will remove unauthorized access and restore missing role-approved "
+        "access. The employee's role is not changed."
+    )
+    confirm_key = f"confirm_remediation_{review.employee.employee_id}"
+    confirmed = st.checkbox(
+        "I confirm this simulated least-privilege remediation", key=confirm_key
+    )
+    if st.button(
+        "Remediate to Role Baseline",
+        type="primary",
+        disabled=not confirmed,
+        key=f"remediate_{review.employee.employee_id}",
+    ):
+        try:
+            correlation_id = remediate_employee(settings.database_path, review)
+            st.session_state["access_review_message"] = (
+                f"Access remediated for {review.employee.employee_id} · "
+                f"correlation {correlation_id}"
+            )
+            st.rerun()
+        except RuntimeError as error:
+            st.error(str(error))
+
+
+def render_access_review() -> None:
+    st.header("RBAC & Access Review Center")
+    st.caption(
+        "Compare expected role-based access with actual persisted assignments, explain "
+        "violations, and remediate safely in simulation mode."
+    )
+    if message := st.session_state.pop("access_review_message", None):
+        st.success(message)
+
+    reviews = review_all(settings.database_path)
+    summary = review_summary(reviews)
+    identities_col, compliant_col, finding_col, critical_col, privileged_col = st.columns(5)
+    identities_col.metric("Reviewed identities", summary["identities"])
+    compliant_col.metric("Compliant", summary["compliant"])
+    finding_col.metric("Findings", summary["findings"])
+    critical_col.metric("Critical", summary["critical"])
+    privileged_col.metric("Privileged", summary["privileged"])
+
+    with st.expander("Create mandatory excessive-privilege scenario"):
+        st.warning(
+            "This controlled simulation grants `platform.administrator` to a Developer so "
+            "the policy engine can detect and remediate the violation. No cloud is affected."
+        )
+        developers = [
+            review for review in reviews if review.employee.job_role == "Developer"
+        ]
+        scenario_employee_id = st.selectbox(
+            "Developer",
+            tuple(review.employee.employee_id for review in developers),
+            format_func=lambda identifier: next(
+                f"{review.employee.display_name} · {identifier}"
+                for review in developers
+                if review.employee.employee_id == identifier
+            ),
+            key="scenario_developer",
+        )
+        scenario_confirmed = st.checkbox(
+            "I confirm creation of this simulated policy violation",
+            key="confirm_admin_scenario",
+        )
+        if st.button(
+            "Grant Simulated Administrator Permission",
+            disabled=not scenario_confirmed,
+            key="create_admin_scenario",
+        ):
+            try:
+                correlation_id = create_developer_admin_scenario(
+                    settings.database_path, scenario_employee_id
+                )
+                st.session_state["access_review_message"] = (
+                    f"Scenario created for {scenario_employee_id} · correlation "
+                    f"{correlation_id}"
+                )
+                st.rerun()
+            except (ValueError, RuntimeError) as error:
+                st.error(str(error))
+
+    search_col, department_col, category_col, risk_col = st.columns([2, 1, 1.4, 1])
+    with search_col:
+        search = st.text_input(
+            "Search reviews", placeholder="Name or employee ID", key="review_search"
+        ).strip().lower()
+    with department_col:
+        department = st.selectbox(
+            "Department", ("All", *DEPARTMENT_NAMES), key="review_department"
+        )
+    categories = tuple(
+        sorted({finding.category for review in reviews for finding in review.findings})
+    )
+    with category_col:
+        category = st.selectbox(
+            "Finding category", ("All", "Compliant", *categories), key="review_category"
+        )
+    with risk_col:
+        risk = st.selectbox(
+            "Risk", ("All", *(item.value for item in RiskLevel)), key="review_risk"
+        )
+
+    filtered = []
+    for review in reviews:
+        if search and search not in (
+            f"{review.employee.display_name} {review.employee.employee_id}".lower()
+        ):
+            continue
+        if department != "All" and review.employee.department != department:
+            continue
+        if category == "Compliant" and not review.compliant:
+            continue
+        if category not in {"All", "Compliant"} and not any(
+            finding.category == category for finding in review.findings
+        ):
+            continue
+        if risk != "All" and not any(
+            finding.risk.value == risk for finding in review.findings
+        ):
+            continue
+        filtered.append(review)
+
+    st.metric("Matching reviews", len(filtered))
+    st.dataframe(
+        [
+            {
+                "Employee ID": review.employee.employee_id,
+                "Name": review.employee.display_name,
+                "Department": review.employee.department,
+                "Role": review.employee.job_role,
+                "Review": "COMPLIANT" if review.compliant else "VIOLATION",
+                "Findings": len(review.findings),
+                "Privileged": "Yes" if review.privileged else "No",
+                "Privilege Creep": "Yes" if review.privilege_creep else "No",
+            }
+            for review in filtered
+        ],
+        width="stretch",
+        hide_index=True,
+    )
+
+    if filtered:
+        selected_id = st.selectbox(
+            "Inspect identity",
+            tuple(review.employee.employee_id for review in filtered),
+            format_func=lambda identifier: next(
+                f"{review.employee.display_name} · {identifier} · "
+                f"{'COMPLIANT' if review.compliant else 'VIOLATION'}"
+                for review in filtered
+                if review.employee.employee_id == identifier
+            ),
+            key="review_identity",
+        )
+        _render_access_review_detail(
+            next(review for review in filtered if review.employee.employee_id == selected_id)
+        )
+    else:
+        st.info("No access reviews match the selected filters.")
+
+    with st.expander("Privileged identity inventory"):
+        st.dataframe(
+            [
+                {
+                    "Employee ID": review.employee.employee_id,
+                    "Name": review.employee.display_name,
+                    "Role": review.employee.job_role,
+                    "Status": review.employee.status.value,
+                    "Findings": len(review.findings),
+                }
+                for review in reviews
+                if review.privileged
+            ],
+            width="stretch",
+            hide_index=True,
+        )
+
+
 if page == "Overview":
     render_overview()
 elif page == "Organization Explorer":
     render_organization_explorer()
 elif page == "JML Operations":
     render_jml_operations()
+elif page == "Access Review":
+    render_access_review()
 else:
     render_access_matrix()
 
@@ -561,4 +832,4 @@ with st.expander("Runtime details"):
         }
     )
 
-st.caption("CILAMP Phase 2 · Cloud/IAM-first · Simulation-only")
+st.caption("CILAMP Phase 3 · Cloud/IAM-first · Simulation-only")

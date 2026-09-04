@@ -686,6 +686,46 @@ Start with the correlation ID. Check the plan's before state, removal set, addit
 
 ---
 
+# 26. Phase 3 — Expected vs Actual Access Review
+
+## What It Is
+
+An access review compares what an identity should have according to business policy with what it actually has. Differences may be excessive privilege, unauthorized assignments, stale access from an old role, or missing access needed for work.
+
+## Why Enterprises Use It
+
+Provisioning processes are not perfect. Manual changes, incomplete transfers, exceptions, and configuration mistakes can cause actual access to drift away from policy. Regular review detects that drift and provides evidence for remediation.
+
+## Where It Is Implemented
+
+- `src/cilamp/policy.py`: expected access, findings, risk, privileged identities, and access-source explanations.
+- `src/cilamp/access_review_service.py`: organization review, mandatory scenario, summaries, and remediation coordination.
+- `src/cilamp/repository.py`: controlled scenario grant, transactional reconciliation, concurrency checks, and audit evidence.
+- `dashboard/app.py`: Access Review Center, filters, expected/actual/difference/source views, and remediation controls.
+
+## How to Demonstrate It Manually
+
+1. Open Access Review and show that the clean organization is compliant.
+2. Expand the scenario panel, select a Developer, confirm, and grant the simulated Administrator permission.
+3. Inspect the identity: expected access excludes `platform.administrator`, actual access includes it, and the finding is `CRITICAL` excessive privilege.
+4. Explain the source as a direct/stale assignment outside role policy.
+5. Confirm remediation and show that the identity returns to compliant state.
+6. Open the lifecycle audit timeline to locate the scenario and remediation correlation IDs.
+
+## Safe Failure Scenario
+
+Create the Administrator scenario twice for the same Developer; the duplicate grant is rejected. Another safe test is to review an identity, change its assignments, and then attempt the old remediation; the stale review is rejected.
+
+## Troubleshooting
+
+Verify identity status and role first, then compare expected and actual groups, applications, and permissions. Determine whether a difference is excess or missing. Follow the correlation ID for scenario/remediation evidence. Do not resolve an access problem by granting broad Administrator access.
+
+## Interview Explanation
+
+> I built an access-review engine that compares role-based expected access with actual persisted assignments. It risk-rates excessive, unauthorized, stale, and missing access, identifies privileged identities, explains assignment sources, and supports confirmed transactional remediation with audit evidence. A deliberate Developer-to-Administrator scenario demonstrates least-privilege violation detection.
+
+---
+
 # Concepts Still To Be Added
 
 Claude/Codex should add detailed notes as these are implemented:
