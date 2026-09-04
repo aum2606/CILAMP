@@ -127,7 +127,7 @@ No cloud SDK is invoked and no cloud resource was read or modified.
 
 ## Last Relevant Git Commit
 
-**Commit:** Pending Phase 1 milestone commit at the time of this state update
+**Commit:** `a3b1a7f`
 
 **Message:** `feat(phase-1): implement organization and IAM model`
 
