@@ -612,3 +612,31 @@ Examples:
 - Adding API server.
 - Changing authentication architecture.
 - Changing repository layout.
+
+---
+
+# 14. Phase 5 Microsoft Entra Integration
+
+```text
+Provider-independent Entra service
+              │
+              ├── SIMULATION ── local fictional organization
+              │
+              └── LIVE_LAB ─── Microsoft Graph v1.0 adapter
+                                      │
+                                      └── Azure CLI / DefaultAzureCredential
+              │
+              ▼
+SQLite display cache + append-only Entra operation history
+              │
+              ▼
+Microsoft Entra dashboard page
+```
+
+The connector contract lives under `src/cilamp/connectors/entra/`. Microsoft Graph URLs, token acquisition, pagination, and response translation stay in `graph.py`; lifecycle and policy modules do not import Microsoft APIs. `entra_service.py` applies mode, confirmation, UPN-domain, and group-allowlist controls. `entra_repository.py` stores a replaceable synchronization cache and a separate operation history.
+
+Schema version 5 adds cached users, groups, memberships, service principals, directory audits, synchronization state, and Entra operations. Tokens and credential values are never part of these records.
+
+Live reads use explicit Graph v1.0 endpoints. User profile and membership writes are deliberately narrow: the operator must enable live writes outside the UI, select a synchronized identity, remain inside the configured lab UPN domain, target an allowlisted group where applicable, and confirm the action in the dashboard. Creating users is not automated because it would require handling initial credentials; this phase favors safe selected-user updates.
+
+The cache is a display/investigation projection, not an IAM source of truth. A failed synchronization preserves truthful failure history and never becomes a simulated success. Directory audit retrieval is optional because tenant roles, consent, retention, and licensing can limit availability.

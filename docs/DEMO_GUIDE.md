@@ -373,3 +373,20 @@ Before presenting:
 - [ ] No secrets shown.
 - [ ] Live cloud connectors healthy if being demonstrated.
 - [ ] Fallback simulation available.
+# Phase 5 — Microsoft Entra Lab Demo
+
+1. Launch the dashboard in the default `SIMULATION` mode and open **Microsoft Entra**.
+2. Point out connection status, mode, safe tenant label, and last synchronization.
+3. Synchronize and show users, groups, service principals, and the simulated directory audit record.
+4. Refresh a selected group's membership and explain that group-based authorization scales better than direct grants.
+5. Open **Lab Readiness & Writes** and show the separate read/write permissions.
+6. Confirm one simulated profile update or membership change, then find its correlation ID under **Entra Operations**.
+7. Explain that live mode uses the same service contract but additionally requires the dedicated-tenant guard, external Azure authentication, a write switch, a lab UPN domain, a group allowlist, and UI confirmation.
+
+Recruiter summary: “The project now connects IAM workflows to an Entra-shaped provider boundary and is ready for a dedicated Microsoft Graph lab without making live cloud access necessary for the demo.”
+
+Technical-interviewer proof points: provider isolation, `/.default` scope, least-privilege permission separation, human versus workload identity, safe error handling, local cache freshness, explicit live-write gates, and truthful license/permission limitations.
+
+Do not describe mocked tests as a live tenant validation. If the audit endpoint is unavailable, demonstrate the limitation message and explain the required permission/role rather than claiming success.
+
+---

@@ -12,11 +12,11 @@
 
 ## Current Status
 
-**Current Phase:** Phase 4 — Security & Audit Center
+**Current Phase:** Phase 5 — Microsoft Entra ID Integration
 
-**Current Milestone:** Phase 4 security operations, audit, and troubleshooting completed and locally validated
+**Current Milestone:** Phase 5 Entra simulation and guarded Microsoft Graph lab integration completed and locally validated
 
-**Overall Status:** COMPLETE — waiting for the project owner to approve Phase 5
+**Overall Status:** COMPLETE — waiting for the project owner to validate Phase 5 and approve Phase 6
 
 ## Phase Status
 
@@ -27,7 +27,7 @@
 | 2 | Joiner-Mover-Leaver Engine | COMPLETE |
 | 3 | RBAC & Access Review | COMPLETE |
 | 4 | Security & Audit Center | COMPLETE |
-| 5 | Microsoft Entra ID Integration | NOT STARTED |
+| 5 | Microsoft Entra ID Integration | COMPLETE |
 | 6 | Azure Identity & RBAC | NOT STARTED |
 | 7 | AWS IAM Integration | NOT STARTED |
 | 8 | Terraform / Infrastructure as Code | NOT STARTED |
@@ -70,9 +70,21 @@
 - Added Security & Audit dashboard tabs for Scenario Lab, Security Findings, Audit Events, Identity Timeline, Privileged Activity, and Troubleshooting.
 - Added audit category/result/search filters and security/audit metrics to Overview.
 
+### Phase 5
+
+- Added an isolated Microsoft Entra connector contract with deterministic simulation and Microsoft Graph v1.0 implementations.
+- Added Azure CLI authentication by default for local live labs and optional `DefaultAzureCredential` for managed/workload identity environments.
+- Added cached users, groups, selected memberships, service principals, directory audits, synchronization state, and append-only Entra operations.
+- Added an Entra dashboard page for connection state, mode, safe tenant label, synchronization, directory objects, application identities, audit data, operations, licensing guidance, and write readiness.
+- Added guarded selected-user department/job-title updates and group membership add/remove operations.
+- Required explicit live-lab enablement, configured tenant/token-tenant match, separate write enablement, synchronized targets, allowed UPN suffix, group allowlist, and UI confirmation.
+- Kept simulation fully functional and ensured no password, client secret, certificate, or access token is accepted or persisted.
+- Added safe partial capability behavior when directory audit retrieval is unavailable due to consent, role, retention, or licensing.
+- Installed and declared `azure-identity` 1.25.3; tested Graph request construction with a fake credential and transport.
+
 ## In-Progress Work
 
-None. Phase 4 is complete. Do not begin Phase 5 without explicit approval.
+None. Phase 5 is complete. Do not begin Phase 6 without explicit approval.
 
 ## Important Architecture State
 
@@ -87,7 +99,7 @@ Confirmed security scenario ─┬─ append-only Audit Events
                               new audit evidence + REMEDIATED status
 ```
 
-The Security & Audit Center unifies views without merging their responsibilities. Audit events state what happened, access reviews state what current policy sees, and security findings track case workflow. All connectors remain absent; every scenario and remediation is local simulation.
+The Security & Audit Center still separates audit evidence, current policy evaluation, and case status. Phase 5 adds a provider boundary after the stable local IAM logic: an Entra service selects either a local simulation adapter or a tenant-pinned Microsoft Graph adapter, then stores a timestamped display cache and separate operation history. The Graph adapter is present but was not connected to a real tenant during development, so no live read or write success is claimed.
 
 ## Important User Decisions
 
@@ -99,6 +111,9 @@ The Security & Audit Center unifies views without merging their responsibilities
 6. The workload-credential scenario stores no credential value.
 7. Findings must not be hidden merely to produce a green dashboard.
 8. No cloud integration or live write begins before its approved phase.
+9. Entra live mode must be explicitly tenant-pinned and cannot be enabled solely from the dashboard.
+10. Live Entra writes remain disabled by default and require target restrictions plus per-operation confirmation.
+11. Mocked Graph tests validate the adapter contract, not real tenant consent, licensing, or execution.
 
 ## Known Issues
 
@@ -110,7 +125,7 @@ The Security & Audit Center unifies views without merging their responsibilities
 
 **Description:** The managed Windows sandbox restricts cleanup of some Python-created temporary directories used internally by Streamlit's test framework.
 
-**Impact:** None on application behavior or assertions; all 40 tests passed across the dashboard and non-dashboard suites.
+**Impact:** None on application behavior or assertions; all 47 tests passed across the dashboard and non-dashboard suites.
 
 **Workaround:** Direct `TEMP`/`TMP` to an approved writable directory and remove inaccessible sandbox artifacts with appropriate workspace permission.
 
@@ -122,31 +137,31 @@ The Security & Audit Center unifies views without merging their responsibilities
 
 **Commands:** `python -m pytest -k "not dashboard"` and `python -m pytest tests/test_dashboard.py -vv`
 
-**Result:** 40 passed, 0 failed (39 non-dashboard + 1 full dashboard traversal)
+**Result:** 47 passed, 0 failed (46 non-dashboard + 1 full dashboard traversal)
 
-**Coverage:** Phase 0–3 regression coverage plus all six scenario definitions/state changes, no-secret workload evidence, finding persistence/filtering, failed control results, remediation/audit preservation, troubleshooting steps, and all six dashboard pages
+**Coverage:** Phase 0–4 regression coverage plus live-mode configuration guards, configured/token tenant matching, Graph v1 request/response translation, sanitized failures, no-token persistence, Entra sync/cache counts, membership reads, explicit confirmation, write-disable switch, allowed UPN domain, group allowlist, and all seven dashboard pages
 
-**Dashboard Smoke Check:** Streamlit started on local port 8502; `/_stcore/health` returned `ok`
+**Dashboard Smoke Check:** Headless traversal rendered all seven pages and synchronized the simulated Entra directory; Streamlit also started on local port 8503 and `/_stcore/health` returned `ok`
 
 ## Cloud Integration Status
 
 | Integration | Status |
 |---|---|
-| Microsoft Entra ID | NOT CONNECTED |
-| Microsoft Graph | NOT CONNECTED |
+| Microsoft Entra ID | SIMULATION COMPLETE / LIVE LAB READY, NOT VALIDATED |
+| Microsoft Graph | CONNECTOR IMPLEMENTED / NO LIVE CALL CLAIMED |
 | Azure | NOT CONNECTED |
 | AWS | NOT CONNECTED |
 | Terraform | NOT CONFIGURED |
 | Docker | NOT CONFIGURED |
 
-No cloud SDK is invoked and no cloud resource was read or modified.
+`azure-identity` is installed for optional authentication. Tests use fake credentials/transports, the dashboard smoke test uses simulation, and no cloud resource was read or modified.
 
 ## Last Relevant Git Commit
 
-**Commit:** `2d29e52`
+**Commit:** Pending Phase 5 milestone commit at the time of this state update
 
-**Message:** `feat(phase-4): implement security and audit center`
+**Message:** `feat(phase-5): implement guarded Microsoft Entra integration`
 
 ## Exact Next Recommended Task
 
-Wait for the project owner to validate the Phase 4 dashboard and explicitly approve **Phase 5 — Microsoft Entra ID Integration**. Phase 5 must begin with a safe lab-readiness and licensing/permission assessment, preserve simulation mode, isolate Microsoft Graph behind a connector, and require explicit confirmation for supported lab writes. Do not implement Phase 5 automatically.
+Wait for the project owner to validate the Phase 5 dashboard. If a dedicated lab is available, perform a separately supervised read-only tenant validation before enabling any write. Begin **Phase 6 — Azure Identity & RBAC** only after explicit approval; do not implement it automatically.

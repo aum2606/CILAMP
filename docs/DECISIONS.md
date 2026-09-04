@@ -471,3 +471,39 @@ The dashboard correlates three related views: current policy evaluation, histori
 ## Consequences
 
 Future cloud events must retain truthful provider results. A failed provider action must never be rewritten as successful merely because a later retry succeeds.
+
+---
+
+# ADR-017 — Use a Guarded Graph Adapter and Replaceable Entra Cache
+
+**Date:** 2026-09-04
+
+**Status:** ACCEPTED
+
+## Context
+
+Phase 5 needs a useful simulation and a real Microsoft Entra lab path without coupling provider behavior to JML policy or allowing a dashboard toggle to authorize cloud writes.
+
+## Options Considered
+
+1. Put Microsoft Graph calls directly in Streamlit and lifecycle functions.
+2. Require client secrets and write directly to Graph with no local projection.
+3. Use a provider contract with simulation/Graph adapters, external identity credentials, a local display cache, and service-level safety gates.
+
+## Decision
+
+Use option 3. `AzureCliCredential` is the default local live-lab authentication path; `DefaultAzureCredential` supports managed/workload identity deployment. Both request the Graph `/.default` scope for an explicitly configured lab tenant, and the adapter checks the returned token's tenant claim. No secret-based credential is accepted by CILAMP.
+
+Live writes require all of: `LIVE_LAB`, the dedicated-lab startup guard, a separate write-enable setting, a synchronized target, an allowed UPN suffix, an allowed group ID for membership changes, and an in-dashboard confirmation. The supported writes are profile metadata updates and group membership changes.
+
+## Reason
+
+The design keeps cloud translation replaceable, provides offline demonstrations, makes least privilege visible, and prevents a UI-only action from expanding the application's authority.
+
+## Trade-offs
+
+The local cache can become stale and is not a transactional mirror of Entra. User creation is excluded to avoid handling initial passwords. Live behavior depends on consent, directory roles, tenant licensing, and network access, so mocked Graph tests do not constitute a live success claim.
+
+## Consequences
+
+Operators must synchronize before selecting targets and reconcile after writes. Provider failures are recorded as failures. Future lifecycle-to-Entra automation must consume approved domain intent through this boundary and add idempotency/partial-failure handling rather than bypassing it.

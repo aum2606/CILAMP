@@ -1,4 +1,4 @@
-"""CILAMP Phase 1 IAM Command Center."""
+"""CILAMP IAM Command Center."""
 
 from __future__ import annotations
 
@@ -15,8 +15,28 @@ from cilamp.access_review_service import (
     review_summary,
 )
 from cilamp.config import load_settings
+from cilamp.connectors.entra import EntraConnectorError
 from cilamp.domain import RiskLevel
 from cilamp.database import check_database
+from cilamp.entra_repository import (
+    get_entra_sync_state,
+    initialize_entra_store,
+    list_cached_group_member_ids,
+    list_entra_directory_audits,
+    list_entra_groups,
+    list_entra_operations,
+    list_entra_service_principals,
+    list_entra_users,
+)
+from cilamp.entra_service import (
+    READ_PERMISSIONS,
+    WRITE_PERMISSIONS,
+    EntraSafetyError,
+    change_entra_group_membership,
+    refresh_group_members,
+    synchronize_entra,
+    update_entra_user,
+)
 from cilamp.iam_catalog import (
     APPLICATIONS,
     DEPARTMENT_NAMES,
@@ -95,6 +115,7 @@ st.markdown(
 settings = load_settings()
 try:
     initialize_organization(settings.database_path)
+    initialize_entra_store(settings.database_path)
 except Exception as error:
     st.error(
         "Organization data could not be initialized. "
@@ -116,11 +137,16 @@ page = st.sidebar.radio(
         "JML Operations",
         "Access Review",
         "Security & Audit",
+        "Microsoft Entra",
         "Access Matrix",
     ),
 )
 st.sidebar.markdown(f"**Mode:** `{settings.mode}`")
-st.sidebar.caption("Cloud integrations are disconnected")
+st.sidebar.caption(
+    "Entra lab connector available"
+    if settings.mode == "LIVE_LAB"
+    else "Cloud writes are simulated"
+)
 
 st.markdown(
     f"""
@@ -140,7 +166,7 @@ with phase_col:
     st.caption("CURRENT PHASE")
     st.markdown(
         f'<div class="context-note"><strong>{CURRENT_PHASE}</strong><br>'
-        "Fictional identities and expected access only; no cloud connections or live writes.</div>",
+        "Entra integration is simulation-first; live lab access is explicitly guarded.</div>",
         unsafe_allow_html=True,
     )
 
@@ -180,6 +206,14 @@ def render_overview() -> None:
     open_col.metric("Open security findings", security_summary["open_findings"])
     remediated_col.metric(
         "Remediated findings", security_summary["remediated_findings"]
+    )
+
+    entra_state = get_entra_sync_state(settings.database_path)
+    entra_col, entra_users_col, entra_apps_col = st.columns(3)
+    entra_col.metric("Entra connector", entra_state.status)
+    entra_users_col.metric("Synced Entra users", entra_state.user_count)
+    entra_apps_col.metric(
+        "Application identities", entra_state.service_principal_count
     )
 
     chart_col, role_chart_col = st.columns(2)
@@ -1161,6 +1195,277 @@ def render_security_audit() -> None:
         _render_troubleshooting()
 
 
+def _entra_user_rows(users) -> list[dict[str, str]]:
+    return [
+        {
+            "Display name": user.display_name,
+            "User principal name": user.user_principal_name,
+            "Enabled": "YES" if user.account_enabled else "NO",
+            "Department": user.department,
+            "Job title": user.job_title,
+        }
+        for user in users
+    ]
+
+
+def render_microsoft_entra() -> None:
+    st.header("Microsoft Entra ID Lab")
+    st.caption(
+        "A provider-isolated connector. Simulation is local; LIVE_LAB uses Microsoft "
+        "Graph only after explicit tenant and write safeguards are configured."
+    )
+    if message := st.session_state.pop("entra_message", None):
+        st.success(message)
+
+    state = get_entra_sync_state(settings.database_path)
+    status_col, mode_status_col, tenant_col, sync_col = st.columns(4)
+    status_col.metric("Connection", state.status)
+    mode_status_col.metric("Mode", settings.mode)
+    tenant_col.metric("Tenant", settings.entra_tenant_label)
+    sync_col.metric(
+        "Last synchronization",
+        state.last_synced_at.strftime("%Y-%m-%d %H:%M UTC")
+        if state.last_synced_at
+        else "Never",
+    )
+    if settings.mode == "LIVE_LAB":
+        st.warning(
+            "LIVE LAB MODE: reads target the configured tenant. Writes are "
+            f"{'enabled for allowlisted targets' if settings.entra_writes_enabled else 'disabled'}."
+        )
+    else:
+        st.info("SIMULATION MODE: no Microsoft Graph request or cloud modification occurs.")
+
+    if st.button("Synchronize Entra Directory", type="primary", key="entra_sync"):
+        try:
+            correlation_id = synchronize_entra(settings)
+            st.session_state["entra_message"] = (
+                f"Directory synchronization completed · correlation {correlation_id}"
+            )
+            st.rerun()
+        except EntraConnectorError as error:
+            st.error(str(error))
+
+    users = list_entra_users(settings.database_path)
+    groups = list_entra_groups(settings.database_path)
+    principals = list_entra_service_principals(settings.database_path)
+    audits = list_entra_directory_audits(settings.database_path)
+    operations = list_entra_operations(settings.database_path)
+    users_tab, groups_tab, apps_tab, audits_tab, operations_tab, readiness_tab = st.tabs(
+        (
+            "Synced Users",
+            "Groups & Memberships",
+            "Application Identities",
+            "Directory Audit",
+            "Entra Operations",
+            "Lab Readiness & Writes",
+        )
+    )
+    with users_tab:
+        st.metric("Cached users", len(users))
+        st.dataframe(_entra_user_rows(users), width="stretch", hide_index=True)
+        if not users:
+            st.caption("Synchronize the directory to populate the local display cache.")
+
+    with groups_tab:
+        st.metric("Cached groups", len(groups))
+        st.dataframe(
+            [
+                {
+                    "Display name": group.display_name,
+                    "Type": group.group_type,
+                    "Security enabled": "YES" if group.security_enabled else "NO",
+                    "Description": group.description,
+                }
+                for group in groups
+            ],
+            width="stretch",
+            hide_index=True,
+        )
+        if groups:
+            selected_group_id = st.selectbox(
+                "Inspect group membership",
+                tuple(group.object_id for group in groups),
+                format_func=lambda identifier: next(
+                    group.display_name for group in groups if group.object_id == identifier
+                ),
+                key="entra_membership_group",
+            )
+            if st.button("Refresh Selected Membership", key="entra_refresh_members"):
+                try:
+                    correlation_id = refresh_group_members(settings, selected_group_id)
+                    st.session_state["entra_message"] = (
+                        f"Group membership refreshed · correlation {correlation_id}"
+                    )
+                    st.rerun()
+                except (EntraConnectorError, EntraSafetyError) as error:
+                    st.error(str(error))
+            member_ids = set(
+                list_cached_group_member_ids(settings.database_path, selected_group_id)
+            )
+            st.dataframe(
+                _entra_user_rows([user for user in users if user.object_id in member_ids]),
+                width="stretch",
+                hide_index=True,
+            )
+
+    with apps_tab:
+        st.metric("Service principals", len(principals))
+        st.dataframe(
+            [
+                {
+                    "Display name": item.display_name,
+                    "Principal type": item.principal_type,
+                    "Enabled": "YES" if item.account_enabled else "NO",
+                    "Application ID": (
+                        f"{item.application_id[:8]}…{item.application_id[-4:]}"
+                        if len(item.application_id) > 14
+                        else item.application_id
+                    ),
+                }
+                for item in principals
+            ],
+            width="stretch",
+            hide_index=True,
+        )
+        st.caption(
+            "A service principal is a tenant-local workload identity. It is not a human "
+            "user, and no credential value is cached here."
+        )
+
+    with audits_tab:
+        st.dataframe(
+            [
+                {
+                    "Time": item.activity_at.isoformat(),
+                    "Activity": item.activity,
+                    "Result": item.result,
+                    "Initiated by": item.initiated_by,
+                    "Target": item.target,
+                }
+                for item in audits
+            ],
+            width="stretch",
+            hide_index=True,
+        )
+        if not audits:
+            st.caption(
+                "No audit records are cached. AuditLog.Read.All, a supported role, and "
+                "applicable tenant retention/licensing may be required."
+            )
+
+    with operations_tab:
+        st.dataframe(
+            [
+                {
+                    "Time": item.timestamp.isoformat(),
+                    "Mode": item.mode,
+                    "Action": item.action,
+                    "Target": item.target,
+                    "Result": item.result,
+                    "Details": item.details,
+                    "Correlation ID": item.correlation_id,
+                }
+                for item in operations
+            ],
+            width="stretch",
+            hide_index=True,
+        )
+
+    with readiness_tab:
+        st.subheader("Least-privilege readiness")
+        read_col, write_col = st.columns(2)
+        with read_col:
+            st.markdown("**Read permissions**")
+            for permission in READ_PERMISSIONS:
+                st.write(f"- {permission}")
+        with write_col:
+            st.markdown("**Write permissions (only if enabled)**")
+            for permission in WRITE_PERMISSIONS:
+                st.write(f"- {permission}")
+        for limitation in state.limitations:
+            st.warning(limitation)
+        st.caption(
+            "Conditional Access, PIM, MFA registration, and Lifecycle Workflows are not "
+            "claimed as live unless the tenant license and permissions expose them."
+        )
+        _render_entra_writes(users, groups)
+
+
+def _render_entra_writes(users, groups) -> None:
+    if not users:
+        st.info("Synchronize first to preview a selected-user operation.")
+        return
+    st.markdown("#### Update selected lab user")
+    user_id = st.selectbox(
+        "User",
+        tuple(user.object_id for user in users),
+        format_func=lambda identifier: next(
+            f"{user.display_name} · {user.user_principal_name}"
+            for user in users
+            if user.object_id == identifier
+        ),
+        key="entra_update_user",
+    )
+    user = next(item for item in users if item.object_id == user_id)
+    department = st.text_input(
+        "Department", value=user.department, key="entra_update_department"
+    )
+    job_title = st.text_input(
+        "Job title", value=user.job_title, key="entra_update_job_title"
+    )
+    confirmed = st.checkbox(
+        f"I confirm this {settings.mode} selected-user profile update",
+        key="entra_confirm_user_update",
+    )
+    if st.button("Apply User Update", disabled=not confirmed, key="entra_apply_user_update"):
+        try:
+            correlation_id = update_entra_user(
+                settings, user_id, department, job_title, confirmed=confirmed
+            )
+            st.session_state["entra_message"] = (
+                f"User update completed · correlation {correlation_id}"
+            )
+            st.rerun()
+        except (EntraConnectorError, EntraSafetyError) as error:
+            st.error(str(error))
+
+    if groups:
+        st.markdown("#### Change selected group membership")
+        group_id = st.selectbox(
+            "Group",
+            tuple(group.object_id for group in groups),
+            format_func=lambda identifier: next(
+                group.display_name for group in groups if group.object_id == identifier
+            ),
+            key="entra_write_group",
+        )
+        operation = st.radio("Membership action", ("ADD", "REMOVE"), horizontal=True)
+        membership_confirmed = st.checkbox(
+            f"I confirm this {settings.mode} membership change",
+            key="entra_confirm_membership",
+        )
+        if st.button(
+            "Apply Membership Change",
+            disabled=not membership_confirmed,
+            key="entra_apply_membership",
+        ):
+            try:
+                correlation_id = change_entra_group_membership(
+                    settings,
+                    group_id,
+                    user_id,
+                    operation,
+                    confirmed=membership_confirmed,
+                )
+                st.session_state["entra_message"] = (
+                    f"Membership change completed · correlation {correlation_id}"
+                )
+                st.rerun()
+            except (EntraConnectorError, EntraSafetyError) as error:
+                st.error(str(error))
+
+
 if page == "Overview":
     render_overview()
 elif page == "Organization Explorer":
@@ -1171,6 +1476,8 @@ elif page == "Access Review":
     render_access_review()
 elif page == "Security & Audit":
     render_security_audit()
+elif page == "Microsoft Entra":
+    render_microsoft_entra()
 else:
     render_access_matrix()
 
@@ -1184,4 +1491,4 @@ with st.expander("Runtime details"):
         }
     )
 
-st.caption("CILAMP Phase 4 · Cloud/IAM-first · Simulation-only")
+st.caption("CILAMP Phase 5 · Cloud/IAM-first · Simulation-first Entra lab integration")

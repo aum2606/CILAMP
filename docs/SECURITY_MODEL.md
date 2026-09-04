@@ -481,3 +481,20 @@ No phase involving cloud/security is complete unless:
 - [ ] Security failures are represented honestly.
 - [ ] Relevant security tests pass.
 - [ ] Documentation explains the security rationale.
+
+---
+
+# 19. Phase 5 Entra Lab Controls
+
+- `SIMULATION` remains the default and makes no token request or Graph call.
+- `LIVE_LAB` refuses startup unless the dedicated-lab guard and tenant ID are explicitly configured; the Graph adapter also verifies the access token's tenant claim matches that configured lab.
+- Authentication uses Azure CLI or Azure Identity's managed/workload identity chain. CILAMP has no client-secret setting and never caches access tokens.
+- Read permissions are separated conceptually from write permissions. Optional directory audit failure does not fabricate results.
+- Live writes are disabled by default and require a second configuration switch plus UI confirmation.
+- Selected-user updates are limited to department and job title; password and credential fields do not exist in the connector contract.
+- Live user writes require the configured lab UPN suffix. Membership writes additionally require an explicit group-object-ID allowlist.
+- Only synchronized objects can be selected, reducing arbitrary-ID injection risk.
+- Microsoft Graph HTTP errors are reduced to status/error codes and remediation guidance; response bodies and tokens are not displayed or persisted.
+- Application identity records contain metadata only. A service principal is not treated as a human user or as a credential.
+
+Minimum intended application permissions are `User.Read.All`, `GroupMember.Read.All`, and `Application.Read.All`. `AuditLog.Read.All` is optional. Enable `User.ReadWrite.All` and `GroupMember.ReadWrite.All` only for the dedicated lab if the write demonstration is required, with appropriate Entra directory roles for delegated operation. Role-assignable groups are outside the intended allowlist.

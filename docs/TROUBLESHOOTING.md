@@ -507,3 +507,34 @@ Keep test artifacts in writable locations in restricted CI/sandbox environments.
 ### Related Commit
 
 Phase 0 milestone commit.
+# Microsoft Entra Connector Troubleshooting
+
+## LIVE_LAB refuses to start
+
+This is an intentional safety control. Confirm the target is a dedicated lab, then set `CILAMP_ENTRA_LAB_ENABLED=true` and the exact `CILAMP_ENTRA_TENANT_ID` in the process environment. Never weaken the check for convenience.
+
+## Authentication fails
+
+1. Run `az login --tenant <tenant-id>` outside CILAMP.
+2. Verify the selected tenant with `az account show` without copying tokens into logs.
+3. Confirm `CILAMP_ENTRA_AUTH_METHOD=AZURE_CLI`, or use `DEFAULT` only when a managed/workload identity is intentionally configured.
+4. Check system time and outbound HTTPS access to Microsoft identity and Graph endpoints.
+5. Retry **Synchronize Entra Directory** and use the recorded correlation ID.
+
+## Microsoft Graph returns HTTP 403
+
+Map the failed endpoint to the narrow permission shown in **Lab Readiness & Writes**. Confirm admin consent where required and the signed-in user's supported Entra role for delegated writes. Do not respond by granting Global Administrator or `Directory.ReadWrite.All` unless an independently documented requirement justifies it.
+
+## Live write is blocked before Graph
+
+Check, in order: `LIVE_LAB`, dedicated-lab guard, synchronized target, `CILAMP_ENTRA_WRITES_ENABLED=true`, allowed UPN domain, group object ID allowlist, and the dashboard confirmation. The block is a successful security control, not a connector defect.
+
+## Audit data is unavailable while other reads work
+
+Directory audits use a separate endpoint and may require `AuditLog.Read.All`, a supported Entra role, adequate retention, and applicable licensing. CILAMP records the limitation and continues to display users/groups/service principals; it does not create fake audit events.
+
+## Membership or object changes appear stale
+
+Microsoft Entra can exhibit replication delay. Wait briefly, refresh the selected membership or synchronize again, and compare the new Entra operation result. The local cache is only as fresh as its displayed synchronization time.
+
+---

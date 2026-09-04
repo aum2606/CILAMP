@@ -313,7 +313,7 @@ Create **Security & Audit Center** with:
 
 # Phase 5 — Microsoft Entra ID Integration
 
-**Status:** NOT STARTED
+**Status:** COMPLETE
 
 ## Goal
 
@@ -360,12 +360,12 @@ If a feature is unavailable due to licensing:
 
 ## Acceptance Criteria
 
-- [ ] Entra connector is isolated from domain logic.
-- [ ] Read operations work safely.
-- [ ] Approved lab write operations work safely.
-- [ ] No credentials are committed.
-- [ ] Simulation remains functional.
-- [ ] Git milestone committed.
+- [x] Entra connector is isolated from domain logic.
+- [x] Read operations work safely through simulation and a mocked Graph contract; live tenant validation remains environment-dependent and is not claimed.
+- [x] Approved lab write operations are implemented with explicit confirmation, a separate enable switch, UPN-domain restriction, and group allowlist; no live write was executed during development.
+- [x] No credentials are committed.
+- [x] Simulation remains functional.
+- [x] Git milestone committed.
 
 ---
 

@@ -781,3 +781,56 @@ Claude/Codex should add detailed notes as these are implemented:
 - [ ] Workload identity federation.
 - [ ] Terraform state.
 - [ ] Docker health checks.
+# Phase 5 Learning Note — Microsoft Entra Connector and Safe Lab Operations
+
+## What it is
+
+Microsoft Entra ID is Microsoft's cloud identity directory. Microsoft Graph is the API surface used here to read directory objects and, when separately authorized, perform narrow lab changes. CILAMP represents human identities as users and application/workload identities as service principals.
+
+## Why enterprises use it
+
+Enterprises centralize authentication identities, group-based authorization, application identities, and directory audit evidence in Entra. Automation reduces manual assignment mistakes, but it must operate with limited permissions, clear change control, and reliable evidence.
+
+## Where it is implemented
+
+- `src/cilamp/connectors/entra/base.py`: provider contract.
+- `src/cilamp/connectors/entra/simulation.py`: offline Entra-shaped directory.
+- `src/cilamp/connectors/entra/graph.py`: Microsoft Graph v1.0 and Azure Identity adapter.
+- `src/cilamp/entra_service.py`: safety and orchestration boundary.
+- `src/cilamp/entra_repository.py`: synchronized cache and operation evidence.
+- `dashboard/app.py`: Microsoft Entra visual control center.
+
+## How to demonstrate it manually
+
+1. Start in `SIMULATION` and open **Microsoft Entra**.
+2. Select **Synchronize Entra Directory** and verify 500 users, 13 groups, and 10 application identities.
+3. Open **Groups & Memberships**, select a group, and refresh its members.
+4. Compare a human user with a service principal in **Application Identities**.
+5. In **Lab Readiness & Writes**, confirm a simulated profile or membership update.
+6. Verify the result and correlation ID in **Entra Operations**.
+
+For a real dedicated lab, configure the non-secret controls from `.env.example`, authenticate to the correct tenant with Azure CLI, start in read-only mode, and synchronize. Do not enable writes until the UPN suffix, group allowlist, consent, and operator role are reviewed.
+
+## Common troubleshooting
+
+- Authentication failure: confirm `az account show`, tenant selection, token availability, and local clock.
+- HTTP 403: identify the exact endpoint and compare consent plus the signed-in operator's Entra role; do not add broad permissions blindly.
+- Empty results: verify the target tenant, object type, and Graph pagination rather than assuming the directory is empty.
+- Audit tab unavailable: check `AuditLog.Read.All`, Reports/Security Reader-type role requirements, retention, and licensing.
+- Write blocked locally: check mode, lab guard, write switch, UPN suffix, group allowlist, synchronized target, and UI confirmation.
+- Graph write succeeds but the next read looks stale: account for directory replication delay and synchronize again.
+
+## What you should personally understand
+
+- Authentication proves which identity calls Graph; authorization decides which Graph operation it may perform.
+- Delegated/application permissions and Entra directory roles are related but different controls.
+- A service principal represents an application in a tenant; it is not the application's secret.
+- `User.Read.All` does not authorize user updates, and read permissions should not be expanded merely to make a demo convenient.
+- A local cache is a timestamped projection, not proof of current directory state.
+- Mocked connector tests prove request construction and safety behavior, not that a real tenant granted consent or completed an operation.
+
+## Interview explanation
+
+“I integrated Microsoft Entra through a provider interface so the JML and RBAC logic remains cloud-independent. The default adapter is a deterministic simulation; the live adapter uses Azure Identity and Microsoft Graph against an explicitly selected lab tenant. Reads cache users, groups, memberships, service principals, and optional audit data for the dashboard. Live writes are disabled by default and constrained by confirmation, allowed UPN domain, and group allowlist. Provider failures remain truthful audit records, and no passwords, client secrets, or tokens are persisted.”
+
+---

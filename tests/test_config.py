@@ -21,8 +21,29 @@ def test_relative_database_path_is_resolved(monkeypatch: pytest.MonkeyPatch) -> 
     assert load_settings().database_path.is_absolute()
 
 
-def test_phase_zero_rejects_live_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_live_mode_requires_explicit_lab_guard(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CILAMP_MODE", "LIVE_LAB")
+    monkeypatch.delenv("CILAMP_ENTRA_LAB_ENABLED", raising=False)
+    monkeypatch.delenv("CILAMP_ENTRA_TENANT_ID", raising=False)
 
-    with pytest.raises(ValueError, match="SIMULATION mode only"):
+    with pytest.raises(ValueError, match="dedicated lab tenant"):
         load_settings()
+
+
+def test_live_mode_loads_non_secret_safety_controls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CILAMP_MODE", "LIVE_LAB")
+    monkeypatch.setenv("CILAMP_ENTRA_LAB_ENABLED", "true")
+    monkeypatch.setenv("CILAMP_ENTRA_TENANT_ID", "tenant-lab")
+    monkeypatch.setenv("CILAMP_ENTRA_WRITES_ENABLED", "true")
+    monkeypatch.setenv("CILAMP_ENTRA_ALLOWED_USER_DOMAIN", "lab.example")
+    monkeypatch.setenv("CILAMP_ENTRA_ALLOWED_GROUP_IDS", "group-1, group-2")
+
+    settings = load_settings()
+
+    assert settings.mode == "LIVE_LAB"
+    assert settings.entra_lab_enabled
+    assert settings.entra_writes_enabled
+    assert settings.entra_allowed_user_domain == "lab.example"
+    assert settings.entra_allowed_group_ids == ("group-1", "group-2")
