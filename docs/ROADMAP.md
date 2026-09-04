@@ -261,7 +261,7 @@ The system must flag it as excessive privilege.
 
 # Phase 4 — Security & Audit Center
 
-**Status:** NOT STARTED
+**Status:** COMPLETE
 
 ## Goal
 
@@ -302,12 +302,12 @@ Create **Security & Audit Center** with:
 
 ## Acceptance Criteria
 
-- [ ] Important operations create audit events.
-- [ ] Security scenarios are visible.
-- [ ] Failed actions are represented accurately.
-- [ ] Troubleshooting path is documented.
-- [ ] Tests pass.
-- [ ] Git milestone committed.
+- [x] Important operations create audit events.
+- [x] Security scenarios are visible.
+- [x] Failed actions are represented accurately.
+- [x] Troubleshooting path is documented.
+- [x] Tests pass.
+- [x] Git milestone committed.
 
 ---
 

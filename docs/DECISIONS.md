@@ -437,3 +437,37 @@ Reviewing all 500 local identities performs more reads than loading a cached fin
 ## Consequences
 
 Future cloud reviews must clearly identify the timestamp/source of actual state. Exceptions require an explicit design and justification rather than suppressing findings informally.
+
+---
+
+# ADR-016 — Separate Immutable Audit Evidence from Mutable Case Status
+
+**Date:** 2026-09-04
+
+**Status:** ACCEPTED
+
+## Context
+
+Security operations need both a historical record of events and a workflow indicating whether a finding is still open. Updating an audit record to mark a case fixed would destroy evidence; treating every derived policy variance as a stored case would create stale duplicates.
+
+## Options Considered
+
+1. Use audit events as mutable case records.
+2. Persist every access-review variance as a finding.
+3. Keep append-only audit evidence, derive access reviews from current state, and persist only explicit security cases with lifecycle status.
+
+## Decision
+
+Audit events are immutable evidence. Access-review findings remain derived. Confirmed Phase 4 scenarios create persisted security findings that transition from `OPEN` to `REMEDIATED` while resolution actions append new audit events.
+
+## Reason
+
+This preserves historical truth, avoids stale policy snapshots, and supports an understandable investigation workflow.
+
+## Trade-offs
+
+The dashboard correlates three related views: current policy evaluation, historical events, and case status. This extra distinction reflects real security operations and prevents misleading data mutation.
+
+## Consequences
+
+Future cloud events must retain truthful provider results. A failed provider action must never be rewritten as successful merely because a later retry succeeds.

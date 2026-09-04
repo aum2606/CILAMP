@@ -412,7 +412,28 @@ Refresh the identity and generate a new review. The safety check means assignmen
 
 ---
 
-# 21. Incident Record Template
+# 21. Failed Event and Successful Remediation Both Appear
+
+This is expected. The failed event records the original access/control problem. Remediation appends a later success event and changes the security finding status; it must not rewrite the historical failure.
+
+Use the finding target and correlation IDs to explain the sequence:
+
+```text
+Control check → FAILURE
+Finding created → SUCCESS
+Remediation executed → SUCCESS
+Finding remediated → SUCCESS
+```
+
+---
+
+# 22. Workload Credential Scenario
+
+The scenario must never contain a real credential. Verify evidence says `secret_value_stored: NO`. In a real incident, do not paste the credential into CILAMP or logs; revoke/rotate it through the owning platform and migrate to managed identity, workload federation, or short-lived role credentials.
+
+---
+
+# 23. Incident Record Template
 
 Use this section when a real development issue occurs.
 
@@ -447,7 +468,7 @@ What should prevent recurrence?
 
 ---
 
-# 22. Current Incidents
+# 24. Current Incidents
 
 ## INCIDENT-001 — Pytest Temporary Directory Denied in Managed Windows Sandbox
 

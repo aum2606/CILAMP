@@ -130,3 +130,41 @@ class AccessReview:
             in {"EXCESSIVE_PRIVILEGE", "PRIVILEGE_CREEP", "UNAUTHORIZED_ACCESS"}
             for finding in self.findings
         )
+
+
+class FindingStatus(StrEnum):
+    OPEN = "OPEN"
+    REMEDIATED = "REMEDIATED"
+
+
+@dataclass(frozen=True)
+class SecurityFinding:
+    finding_id: str
+    created_at: datetime
+    target_identity: str
+    scenario_type: str
+    title: str
+    description: str
+    risk: RiskLevel
+    status: FindingStatus
+    evidence: dict[str, str]
+    recommendation: str
+    correlation_id: str
+    resolved_at: datetime | None = None
+    resolution: str = ""
+
+
+@dataclass(frozen=True)
+class SecurityScenarioPlan:
+    scenario_type: str
+    target_identity: str
+    title: str
+    description: str
+    risk: RiskLevel
+    evidence: dict[str, str]
+    recommendation: str
+    to_remove: AccessChanges = AccessChanges()
+    to_add: AccessChanges = AccessChanges()
+    new_status: EmployeeStatus | None = None
+    observed_action: str = "SECURITY_CONTROL_CHECK"
+    observed_result: str = "FAILURE"

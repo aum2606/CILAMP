@@ -327,6 +327,20 @@ Phase 2 audit presentation is scoped to lifecycle operations. Cross-system secur
 
 Phase 3 does not claim that a local finding came from live Entra, Azure, or AWS state.
 
+## 13.5 Phase 4 Security Case Controls
+
+- Security scenarios require preview and explicit confirmation before modifying local simulation state.
+- Each scenario creates an `OPEN` finding with risk, evidence metadata, recommendation, and correlation ID.
+- The observed policy/access check is recorded as `FAILURE`; scenario creation itself is recorded as a successful audited action.
+- Audit events are append-only. Finding status may transition from `OPEN` to `REMEDIATED` with resolution evidence.
+- Human-identity remediation reconciles actual assignments to the current role/status baseline.
+- A disabled identity remains disabled while residual access is removed.
+- The workload-credential scenario stores only the labels `SOURCE_CODE (SIMULATED)` and `secret_value_stored: NO`; no credential is generated, requested, displayed, or persisted.
+- Failed operations, privileged activity, identity timelines, lifecycle events, and security events remain visibly distinguishable.
+- Filters use parameterized values or fixed allowlists.
+
+The six implemented scenarios are excessive privilege, retained old-department access, disabled identity with application access, unauthorized group membership, simulated insecure workload credential, and missing required application access.
+
 ---
 
 # 14. Logging Rules

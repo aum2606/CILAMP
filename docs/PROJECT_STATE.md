@@ -12,11 +12,11 @@
 
 ## Current Status
 
-**Current Phase:** Phase 3 — RBAC & Access Review
+**Current Phase:** Phase 4 — Security & Audit Center
 
-**Current Milestone:** Phase 3 access-review policy and remediation completed and locally validated
+**Current Milestone:** Phase 4 security operations, audit, and troubleshooting completed and locally validated
 
-**Overall Status:** COMPLETE — waiting for the project owner to approve Phase 4
+**Overall Status:** COMPLETE — waiting for the project owner to approve Phase 5
 
 ## Phase Status
 
@@ -26,7 +26,7 @@
 | 1 | Organization & IAM Model | COMPLETE |
 | 2 | Joiner-Mover-Leaver Engine | COMPLETE |
 | 3 | RBAC & Access Review | COMPLETE |
-| 4 | Security & Audit Center | NOT STARTED |
+| 4 | Security & Audit Center | COMPLETE |
 | 5 | Microsoft Entra ID Integration | NOT STARTED |
 | 6 | Azure Identity & RBAC | NOT STARTED |
 | 7 | AWS IAM Integration | NOT STARTED |
@@ -38,59 +38,66 @@
 
 ### Phase 0
 
-- Established the secure Git/Python/Streamlit/SQLite foundation, simulation-only mode, health checks, and repository memory.
+- Established the secure Python/Streamlit/SQLite foundation, simulation-only mode, health checks, Git workflow, and repository memory.
 
 ### Phase 1
 
-- Created six departments, ten roles, thirteen groups, ten applications, fourteen permissions, and exactly 500 deterministic fictional employees.
-- Implemented role-derived expected access, organization persistence, search/filtering, employee profiles, and the visual Access Matrix.
+- Created the deterministic 500-employee organization, IAM catalogs, expected role access, search/filtering, profiles, and Access Matrix.
 
 ### Phase 2
 
-- Implemented confirmed, transactional Joiner, Mover, and Leaver workflows with actual assignments, removal-before-grant behavior, complete offboarding, stale-preview protection, and correlated lifecycle audit events.
+- Implemented confirmed, transactional JML workflows with actual assignments, removal-before-grant behavior, complete offboarding, stale-preview protection, and correlated lifecycle audit events.
 
 ### Phase 3
 
-- Added a provider-independent RBAC policy engine that calculates expected access from role and identity status.
-- Compares expected with independently persisted actual groups, applications, and permissions.
-- Detects excessive privilege, unauthorized group/application access, stale permission/privilege creep, and missing access.
-- Risk-rates privileged variance as `CRITICAL`, other excess/stale access as `HIGH`, and missing required access as `MEDIUM`.
-- Identifies privileged identities through approved privileged roles or actual privileged assignments.
-- Explains role/group-policy inheritance versus direct or stale assignments.
-- Added the explicit Developer→`platform.administrator` mandatory security scenario with confirmation and audit evidence.
-- Added confirmed, transactional remediation that removes excess access, restores missing expected access, preserves the role, and rejects stale reviews.
-- Added the RBAC & Access Review Center with organization metrics, filters, review inventory, expected/actual/difference/source views, findings, explanations, suggested remediation, and privileged identity inventory.
-- Added access-review metrics to Overview.
+- Implemented expected-versus-actual RBAC evaluation, risk-rated findings, privileged identities, source explanations, the Developer Administrator scenario, and confirmed policy remediation.
+
+### Phase 4
+
+- Added persistent security findings with `OPEN` and `REMEDIATED` workflow states.
+- Kept append-only audit evidence separate from derived access reviews and mutable case status.
+- Implemented all six required controlled scenarios:
+  1. Excessive privilege.
+  2. Retained old-department access.
+  3. Disabled identity with application access.
+  4. Unauthorized group membership.
+  5. Insecure workload credential metadata, with no secret value stored.
+  6. Missing required application access.
+- Added preview and explicit confirmation before each scenario changes local state.
+- Recorded each observed failed control/access check truthfully as `FAILURE` and scenario creation as a separate successful action.
+- Added security evidence, recommendations, correlation IDs, and scenario-specific troubleshooting checklists.
+- Implemented confirmed remediation for human and workload cases while preserving historical failure events.
+- Added Security & Audit dashboard tabs for Scenario Lab, Security Findings, Audit Events, Identity Timeline, Privileged Activity, and Troubleshooting.
+- Added audit category/result/search filters and security/audit metrics to Overview.
 
 ## In-Progress Work
 
-None. Phase 3 is complete. Do not begin Phase 4 without explicit approval.
+None. Phase 4 is complete. Do not begin Phase 5 without explicit approval.
 
 ## Important Architecture State
 
 ```text
-Role + identity status                  Actual assignments
-         ↓                                      ↓
-  Expected access ───────── policy compare ─ Actual access
-                              ↓
-       Risk-rated findings + source explanation
-                              ↓ confirm
-          Transactional least-privilege reconciliation
-                              ↓
-                 Correlated audit evidence
+Current role/access evaluation ── derived Access Review
+
+Confirmed security scenario ─┬─ append-only Audit Events
+                             └─ persisted Security Finding (OPEN)
+                                              ↓ troubleshoot/confirm
+                                  policy or posture remediation
+                                              ↓
+                              new audit evidence + REMEDIATED status
 ```
 
-Policy evaluation is pure and contains no persistence or cloud-provider calls. Findings are derived from current state rather than stored as an independent truth. The audit foundation records lifecycle, scenario, and remediation evidence; Phase 4 owns the unified Security & Audit Center and troubleshooting scenarios.
+The Security & Audit Center unifies views without merging their responsibilities. Audit events state what happened, access reviews state what current policy sees, and security findings track case workflow. All connectors remain absent; every scenario and remediation is local simulation.
 
 ## Important User Decisions
 
 1. CILAMP remains Cloud/IAM-first and UI-first.
 2. Work proceeds one explicitly approved phase at a time.
-3. Expected policy and actual assignments remain separate.
-4. Administrator access is never part of a normal-role baseline; the Phase 3 Administrator permission is simulation-only.
-5. Security scenarios and remediation require explicit confirmation and audit evidence.
-6. Findings must not be hidden merely to produce a green dashboard.
-7. Stale reviews fail closed and must be refreshed.
+3. Failed operations remain historically `FAILURE` after later remediation succeeds.
+4. Security findings may change status, but audit events are append-only evidence.
+5. Scenario and remediation actions require preview/confirmation and correlation IDs.
+6. The workload-credential scenario stores no credential value.
+7. Findings must not be hidden merely to produce a green dashboard.
 8. No cloud integration or live write begins before its approved phase.
 
 ## Known Issues
@@ -103,7 +110,7 @@ Policy evaluation is pure and contains no persistence or cloud-provider calls. F
 
 **Description:** The managed Windows sandbox restricts cleanup of some Python-created temporary directories used internally by Streamlit's test framework.
 
-**Impact:** None on application behavior or assertions; all 31 tests passed.
+**Impact:** None on application behavior or assertions; all 40 tests passed across the dashboard and non-dashboard suites.
 
 **Workaround:** Direct `TEMP`/`TMP` to an approved writable directory and remove inaccessible sandbox artifacts with appropriate workspace permission.
 
@@ -113,11 +120,11 @@ Policy evaluation is pure and contains no persistence or cloud-provider calls. F
 
 **Last Test Run:** 2026-09-04
 
-**Command:** `python -m pytest` with managed-sandbox `TEMP`/`TMP` directed to the project data directory
+**Commands:** `python -m pytest -k "not dashboard"` and `python -m pytest tests/test_dashboard.py -vv`
 
-**Result:** 31 passed, 0 failed
+**Result:** 40 passed, 0 failed (39 non-dashboard + 1 full dashboard traversal)
 
-**Coverage:** Phase 0–2 regression coverage plus compliant access, expected-access calculation, group-derived source explanation, Developer Administrator detection, risk levels, missing/stale/unauthorized access, privileged identity inventory, scenario audit, remediation, stale-review rejection, and all five dashboard pages
+**Coverage:** Phase 0–3 regression coverage plus all six scenario definitions/state changes, no-secret workload evidence, finding persistence/filtering, failed control results, remediation/audit preservation, troubleshooting steps, and all six dashboard pages
 
 **Dashboard Smoke Check:** Streamlit started on local port 8502; `/_stcore/health` returned `ok`
 
@@ -136,10 +143,10 @@ No cloud SDK is invoked and no cloud resource was read or modified.
 
 ## Last Relevant Git Commit
 
-**Commit:** `33ba63b`
+**Commit:** Pending Phase 4 milestone commit at the time of this state update
 
-**Message:** `feat(phase-3): implement RBAC access review`
+**Message:** `feat(phase-4): implement security and audit center`
 
 ## Exact Next Recommended Task
 
-Wait for the project owner to validate the Phase 3 dashboard and explicitly approve **Phase 4 — Security & Audit Center**. Phase 4 should unify lifecycle, policy, privileged, and failed-operation events; add filtering and identity timelines; implement the six required security/troubleshooting scenarios; and preserve truthful result states. Do not implement Phase 4 automatically.
+Wait for the project owner to validate the Phase 4 dashboard and explicitly approve **Phase 5 — Microsoft Entra ID Integration**. Phase 5 must begin with a safe lab-readiness and licensing/permission assessment, preserve simulation mode, isolate Microsoft Graph behind a connector, and require explicit confirmation for supported lab writes. Do not implement Phase 5 automatically.

@@ -726,6 +726,46 @@ Verify identity status and role first, then compare expected and actual groups, 
 
 ---
 
+# 27. Phase 4 — Security Findings, Audit Evidence, and Troubleshooting
+
+## What It Is
+
+An audit event records something that happened; a security finding records a problem that needs investigation; an access review calculates whether current assignments match policy. They are related but serve different purposes.
+
+## Why Enterprises Use It
+
+Security and IAM teams must reconstruct who changed access, identify failed controls, prioritize risks, investigate an identity over time, and prove how a problem was resolved. Keeping history separate from case status prevents evidence from being overwritten.
+
+## Where It Is Implemented
+
+- `src/cilamp/security.py`: six scenario plans and scenario-specific troubleshooting steps.
+- `src/cilamp/security_service.py`: eligible targets, previews, case creation, and remediation coordination.
+- `src/cilamp/repository.py`: security findings, failed/successful audit events, filters, and resolution evidence.
+- `dashboard/app.py`: Scenario Lab, Security Findings, Audit Events, Identity Timeline, Privileged Activity, and Troubleshooting tabs.
+
+## How to Demonstrate It Manually
+
+1. Open Security & Audit and choose one scenario in Scenario Lab.
+2. Preview its exact simulated state change and evidence, then confirm creation.
+3. Show the new `OPEN` finding and the failed control-check event.
+4. Filter Audit Events by `FAILURE` and follow the correlation ID.
+5. Open Identity Timeline and Privileged Activity where relevant.
+6. Use Troubleshooting to explain the checks, confirm remediation, and show the case becomes `REMEDIATED` while historical failure evidence remains.
+
+## Safe Failure Scenario
+
+Attempt to create the same open scenario for the same target twice. The duplicate is rejected. The intentionally failed control check remains a truthful `FAILURE`; it is not converted to success after remediation.
+
+## Troubleshooting
+
+Start from the finding, verify evidence and current identity state, then follow its correlation ID through audit events. Separate the failed security control from the successfully executed simulation action. Reconcile human access to policy or, for workload credentials, document the managed/federated identity resolution without storing a secret.
+
+## Interview Explanation
+
+> I built a Security & Audit Center that separates append-only audit evidence, current-state RBAC evaluation, and mutable security-case status. Six IAM scenarios create risk-rated findings and truthful failed control events. Analysts can filter events, inspect identity timelines and privileged activity, follow guided troubleshooting, and perform confirmed remediation with correlated evidence.
+
+---
+
 # Concepts Still To Be Added
 
 Claude/Codex should add detailed notes as these are implemented:

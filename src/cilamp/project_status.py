@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 PROJECT_NAME = "Cloud Identity Lifecycle & Access Management Platform"
 PROJECT_SHORT_NAME = "CILAMP"
-CURRENT_PHASE = "Phase 3 — RBAC & Access Review"
+CURRENT_PHASE = "Phase 4 — Security & Audit Center"
 
 
 @dataclass(frozen=True)
@@ -21,7 +21,7 @@ MODULE_STATUSES = (
     ModuleStatus("Organization Model", "Complete", "Employees, roles, groups, and applications"),
     ModuleStatus("JML Engine", "Complete", "Joiner, Mover, and Leaver workflows"),
     ModuleStatus("RBAC", "Complete", "Role-based access and least-privilege checks"),
-    ModuleStatus("Audit", "Foundation Added", "Lifecycle audit events; full center in Phase 4"),
+    ModuleStatus("Audit", "Complete", "Security events, investigations, and audit history"),
     ModuleStatus("Entra ID", "Not Connected", "Microsoft identity lab connector"),
     ModuleStatus("Azure", "Not Connected", "Azure RBAC and workload identity"),
     ModuleStatus("AWS", "Not Connected", "AWS IAM roles and policies"),
@@ -30,9 +30,9 @@ MODULE_STATUSES = (
 
 
 RECENT_MILESTONES = (
+    "Security & Audit Center and troubleshooting workflows implemented",
+    "Six auditable IAM security scenarios added in simulation mode",
     "RBAC access-review and least-privilege policy engine implemented",
-    "Excess privilege scenario detection and simulation remediation added",
-    "Simulated Joiner, Mover, and Leaver workflows implemented",
 )
 
 

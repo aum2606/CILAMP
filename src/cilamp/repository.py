@@ -11,7 +11,17 @@ from pathlib import Path
 from uuid import uuid4
 
 from cilamp.database import initialize_database
-from cilamp.domain import AuditEvent, EffectiveAccess, Employee, EmployeeStatus, LifecyclePlan
+from cilamp.domain import (
+    AuditEvent,
+    EffectiveAccess,
+    Employee,
+    EmployeeStatus,
+    FindingStatus,
+    LifecyclePlan,
+    RiskLevel,
+    SecurityFinding,
+    SecurityScenarioPlan,
+)
 from cilamp.iam_catalog import APPLICATIONS, DEPARTMENTS, PERMISSIONS, ROLES, ROLE_BY_NAME
 from cilamp.organization import generate_employees
 
@@ -94,6 +104,25 @@ def initialize_organization(path: Path) -> None:
                     ON audit_events(target_identity, timestamp DESC);
                 CREATE INDEX IF NOT EXISTS idx_audit_correlation
                     ON audit_events(correlation_id);
+                CREATE TABLE IF NOT EXISTS security_findings (
+                    finding_id TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL,
+                    target_identity TEXT NOT NULL,
+                    scenario_type TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    risk TEXT NOT NULL,
+                    status TEXT NOT NULL CHECK (status IN ('OPEN', 'REMEDIATED')),
+                    evidence TEXT NOT NULL,
+                    recommendation TEXT NOT NULL,
+                    correlation_id TEXT NOT NULL,
+                    resolved_at TEXT,
+                    resolution TEXT NOT NULL DEFAULT ''
+                );
+                CREATE INDEX IF NOT EXISTS idx_findings_status
+                    ON security_findings(status, risk, created_at DESC);
+                CREATE INDEX IF NOT EXISTS idx_findings_target
+                    ON security_findings(target_identity, created_at DESC);
                 """
             )
             _seed_catalog(connection)
@@ -480,6 +509,7 @@ def _write_audit_event(
     new_state: str,
     reason: str,
     correlation_id: str,
+    result: str = "SUCCESS",
 ) -> None:
     connection.execute(
         "INSERT INTO audit_events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -491,7 +521,7 @@ def _write_audit_event(
             action,
             old_state,
             new_state,
-            "SUCCESS",
+            result,
             reason,
             correlation_id,
         ),
@@ -667,3 +697,265 @@ def reconcile_access(
                 correlation_id,
             )
     return correlation_id
+
+
+def execute_security_scenario(
+    path: Path,
+    plan: SecurityScenarioPlan,
+    actor: str = "simulation.security-analyst",
+) -> tuple[str, str]:
+    """Apply a controlled scenario and persist its finding plus audit evidence."""
+
+    correlation_id = str(uuid4())
+    finding_id = str(uuid4())
+    with closing(sqlite3.connect(path)) as connection:
+        connection.execute("PRAGMA foreign_keys = ON")
+        with connection:
+            duplicate = connection.execute(
+                """
+                SELECT 1 FROM security_findings
+                WHERE target_identity = ? AND scenario_type = ? AND status = 'OPEN'
+                """,
+                (plan.target_identity, plan.scenario_type),
+            ).fetchone()
+            if duplicate:
+                raise LifecycleConflict(
+                    "An open finding for this scenario and target already exists."
+                )
+
+            if not plan.target_identity.startswith("workload:"):
+                employee = connection.execute(
+                    "SELECT 1 FROM employees WHERE employee_id = ?",
+                    (plan.target_identity,),
+                ).fetchone()
+                if employee is None:
+                    raise LifecycleConflict("Scenario target employee does not exist.")
+                _apply_scenario_access(connection, plan, actor, correlation_id)
+
+            now = datetime.now(timezone.utc).isoformat()
+            connection.execute(
+                """
+                INSERT INTO security_findings(
+                    finding_id, created_at, target_identity, scenario_type, title,
+                    description, risk, status, evidence, recommendation, correlation_id,
+                    resolved_at, resolution
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?, NULL, '')
+                """,
+                (
+                    finding_id,
+                    now,
+                    plan.target_identity,
+                    plan.scenario_type,
+                    plan.title,
+                    plan.description,
+                    plan.risk.value,
+                    json.dumps(plan.evidence, sort_keys=True),
+                    plan.recommendation,
+                    correlation_id,
+                ),
+            )
+            _write_audit_event(
+                connection,
+                actor,
+                plan.target_identity,
+                plan.observed_action,
+                "EXPECTED_CONTROL_STATE",
+                json.dumps(plan.evidence, sort_keys=True),
+                plan.description,
+                correlation_id,
+                result=plan.observed_result,
+            )
+            _write_audit_event(
+                connection,
+                actor,
+                plan.target_identity,
+                "SECURITY_FINDING_CREATED",
+                "null",
+                finding_id,
+                plan.description,
+                correlation_id,
+            )
+    return finding_id, correlation_id
+
+
+def _apply_scenario_access(
+    connection: sqlite3.Connection,
+    plan: SecurityScenarioPlan,
+    actor: str,
+    correlation_id: str,
+) -> None:
+    mappings = (
+        ("groups", "employee_groups", "group_name"),
+        ("applications", "employee_applications", "application_name"),
+        ("permissions", "employee_permissions", "permission_name"),
+    )
+    for field, table, column in mappings:
+        for value in getattr(plan.to_remove, field):
+            connection.execute(
+                f"DELETE FROM {table} WHERE employee_id = ? AND {column} = ?",
+                (plan.target_identity, value),
+            )
+            _write_audit_event(
+                connection,
+                actor,
+                plan.target_identity,
+                f"SCENARIO_{field[:-1].upper()}_REMOVED",
+                value,
+                "null",
+                plan.description,
+                correlation_id,
+            )
+    if plan.new_status is not None:
+        old_status = connection.execute(
+            "SELECT status FROM employees WHERE employee_id = ?",
+            (plan.target_identity,),
+        ).fetchone()[0]
+        connection.execute(
+            "UPDATE employees SET status = ? WHERE employee_id = ?",
+            (plan.new_status.value, plan.target_identity),
+        )
+        _write_audit_event(
+            connection,
+            actor,
+            plan.target_identity,
+            "SCENARIO_STATUS_CHANGED",
+            old_status,
+            plan.new_status.value,
+            plan.description,
+            correlation_id,
+        )
+    for field, table, column in mappings:
+        for value in getattr(plan.to_add, field):
+            exists = connection.execute(
+                f"SELECT 1 FROM {table} WHERE employee_id = ? AND {column} = ?",
+                (plan.target_identity, value),
+            ).fetchone()
+            if exists:
+                raise LifecycleConflict(
+                    f"Scenario assignment already exists: {field[:-1]} {value}."
+                )
+            connection.execute(
+                f"INSERT INTO {table}(employee_id, {column}) VALUES (?, ?)",
+                (plan.target_identity, value),
+            )
+            _write_audit_event(
+                connection,
+                actor,
+                plan.target_identity,
+                f"SCENARIO_{field[:-1].upper()}_ADDED",
+                "null",
+                value,
+                plan.description,
+                correlation_id,
+            )
+
+
+def list_security_findings(
+    path: Path,
+    status: str | None = None,
+    risk: str | None = None,
+    scenario_type: str | None = None,
+    target_identity: str | None = None,
+) -> list[SecurityFinding]:
+    clauses: list[str] = []
+    parameters: list[str] = []
+    for column, value in (
+        ("status", status),
+        ("risk", risk),
+        ("scenario_type", scenario_type),
+        ("target_identity", target_identity),
+    ):
+        if value:
+            clauses.append(f"{column} = ?")
+            parameters.append(value)
+    where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+    with closing(sqlite3.connect(path)) as connection:
+        rows = connection.execute(
+            """
+            SELECT finding_id, created_at, target_identity, scenario_type, title,
+                   description, risk, status, evidence, recommendation, correlation_id,
+                   resolved_at, resolution
+            FROM security_findings
+            """
+            + where
+            + " ORDER BY created_at DESC, rowid DESC",
+            parameters,
+        ).fetchall()
+    return [
+        SecurityFinding(
+            finding_id=row[0],
+            created_at=datetime.fromisoformat(row[1]),
+            target_identity=row[2],
+            scenario_type=row[3],
+            title=row[4],
+            description=row[5],
+            risk=RiskLevel(row[6]),
+            status=FindingStatus(row[7]),
+            evidence=json.loads(row[8]),
+            recommendation=row[9],
+            correlation_id=row[10],
+            resolved_at=datetime.fromisoformat(row[11]) if row[11] else None,
+            resolution=row[12],
+        )
+        for row in rows
+    ]
+
+
+def resolve_security_findings(
+    path: Path,
+    target_identity: str,
+    actor: str,
+    resolution: str,
+    correlation_id: str,
+) -> int:
+    """Close all open findings for a reconciled target and audit the case action."""
+
+    resolved_at = datetime.now(timezone.utc).isoformat()
+    with closing(sqlite3.connect(path)) as connection:
+        with connection:
+            finding_ids = [
+                row[0]
+                for row in connection.execute(
+                    """
+                    SELECT finding_id FROM security_findings
+                    WHERE target_identity = ? AND status = 'OPEN'
+                    """,
+                    (target_identity,),
+                ).fetchall()
+            ]
+            connection.execute(
+                """
+                UPDATE security_findings
+                SET status = 'REMEDIATED', resolved_at = ?, resolution = ?
+                WHERE target_identity = ? AND status = 'OPEN'
+                """,
+                (resolved_at, resolution, target_identity),
+            )
+            for finding_id in finding_ids:
+                _write_audit_event(
+                    connection,
+                    actor,
+                    target_identity,
+                    "SECURITY_FINDING_REMEDIATED",
+                    finding_id,
+                    FindingStatus.REMEDIATED.value,
+                    resolution,
+                    correlation_id,
+                )
+    return len(finding_ids)
+
+
+def audit_statistics(path: Path) -> dict[str, int]:
+    with closing(sqlite3.connect(path)) as connection:
+        return {
+            "events": connection.execute("SELECT COUNT(*) FROM audit_events").fetchone()[0],
+            "failed": connection.execute(
+                "SELECT COUNT(*) FROM audit_events WHERE result = 'FAILURE'"
+            ).fetchone()[0],
+            "open_findings": connection.execute(
+                "SELECT COUNT(*) FROM security_findings WHERE status = 'OPEN'"
+            ).fetchone()[0],
+            "remediated_findings": connection.execute(
+                "SELECT COUNT(*) FROM security_findings WHERE status = 'REMEDIATED'"
+            ).fetchone()[0],
+        }

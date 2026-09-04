@@ -78,6 +78,19 @@ Explain:
 
 > The review engine does not trust job title alone. It compares policy with actual assignments. The Developer's Administrator permission is outside the approved baseline, so it is flagged as critical and removed through an audited remediation.
 
+## Phase 4 Security & Audit Demo
+
+1. Open **Security & Audit** and show audit, failure, open, and remediated metrics.
+2. In Scenario Lab, explain the six available IAM/security cases.
+3. Create one scenario after preview and confirmation. The missing-application or disabled-with-access cases are strong troubleshooting demonstrations.
+4. In Security Findings, filter by risk/status/scenario and locate the new case.
+5. In Audit Events, filter `Result = FAILURE`; explain that the control check failed truthfully while scenario creation succeeded.
+6. Use Identity Timeline to reconstruct the target's history.
+7. Use Privileged Activity for an Administrator scenario.
+8. Open Troubleshooting, work through the checklist, confirm remediation, and show the finding closed without deleting the original failure event.
+
+For the workload scenario, explicitly show `secret_value_stored: NO` and explain the recommended managed/federated identity pattern.
+
 ## Demo 1 — Overview
 
 Show:

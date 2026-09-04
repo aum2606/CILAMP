@@ -363,6 +363,8 @@ CILAMP/
 │   ├── lifecycle_service.py  Input validation and operation coordination
 │   ├── policy.py             RBAC evaluation and access explanations
 │   ├── access_review_service.py  Review/scenario/remediation coordination
+│   ├── security.py           Scenario definitions and troubleshooting rules
+│   ├── security_service.py   Security case creation/remediation coordination
 │   ├── organization.py       Deterministic fictional HR source
 │   ├── repository.py         Organization persistence and queries
 │   └── project_status.py     Phase/module presentation metadata
@@ -445,7 +447,29 @@ Job role + identity status                Persisted assignments
 
 `policy.py` is a pure evaluation layer. It identifies excessive privilege, unauthorized groups/applications, stale permission/privilege creep, missing access, and privileged identities. `access_review_service.py` loads reviews and coordinates controlled scenarios/remediation. The repository applies remediation transactionally and rejects stale reviews.
 
-Findings are calculated from current state rather than stored as a second source of truth. Phase 4 may persist security-event workflow state when the Security & Audit Center requires it.
+Access-review findings are calculated from current state rather than stored as a second source of truth. Phase 4 separately persists security-case workflow status and evidence.
+
+## 9.5 Phase 4 Security and Audit Flow
+
+```text
+Controlled scenario preview + confirmation
+                    ↓
+        Simulated security state change
+                    ├── immutable audit events
+                    └── persisted security finding
+                                  ↓
+           filter / timeline / privileged activity
+                                  ↓
+                 troubleshooting checklist
+                                  ↓ confirmation
+       policy reconciliation or workload posture resolution
+                                  ↓
+            remediated case + correlated audit evidence
+```
+
+Schema version 4 adds `security_findings`, which stores investigation status and evidence metadata. It does not replace derived access-review findings. Audit events remain evidence of what occurred; security findings track whether an observed case is open or remediated.
+
+`security.py` defines the six simulation plans and scenario-specific troubleshooting steps. `security_service.py` coordinates scenario execution and remediation. `repository.py` applies local changes transactionally, persists cases, and records both the successful scenario operation and the accurately failed security/access check.
 
 ---
 

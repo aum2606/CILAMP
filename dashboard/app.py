@@ -43,6 +43,7 @@ from cilamp.project_status import (
 )
 from cilamp.policy import access_source_rows
 from cilamp.repository import (
+    audit_statistics,
     distribution,
     get_assigned_access,
     get_employee,
@@ -50,7 +51,15 @@ from cilamp.repository import (
     lifecycle_counts,
     list_employees,
     list_audit_events,
+    list_security_findings,
     organization_counts,
+)
+from cilamp.security import SCENARIOS, troubleshooting_steps
+from cilamp.security_service import (
+    create_security_scenario,
+    eligible_employees,
+    preview_security_scenario,
+    remediate_security_finding,
 )
 
 
@@ -106,6 +115,7 @@ page = st.sidebar.radio(
         "Organization Explorer",
         "JML Operations",
         "Access Review",
+        "Security & Audit",
         "Access Matrix",
     ),
 )
@@ -162,6 +172,15 @@ def render_overview() -> None:
     findings_col.metric("Access findings", access_summary["findings"])
     privileged_col.metric("Privileged identities", access_summary["privileged"])
     creep_col.metric("Privilege-creep identities", access_summary["privilege_creep"])
+
+    security_summary = audit_statistics(settings.database_path)
+    audit_col, failed_col, open_col, remediated_col = st.columns(4)
+    audit_col.metric("Audit events", security_summary["events"])
+    failed_col.metric("Failed control checks", security_summary["failed"])
+    open_col.metric("Open security findings", security_summary["open_findings"])
+    remediated_col.metric(
+        "Remediated findings", security_summary["remediated_findings"]
+    )
 
     chart_col, role_chart_col = st.columns(2)
     with chart_col:
@@ -811,6 +830,337 @@ def render_access_review() -> None:
         )
 
 
+def _audit_category(action: str, result: str) -> str:
+    if result == "FAILURE":
+        return "Failed operations"
+    if action.startswith(("JOINER_", "MOVER_", "LEAVER_")) or action in {
+        "IDENTITY_CREATED",
+        "IDENTITY_UPDATED",
+        "ACCOUNT_DISABLED",
+    }:
+        return "Lifecycle"
+    if any(word in action for word in ("GRANTED", "REVOKED", "REMEDIATION")):
+        return "Access changes"
+    if any(
+        word in action
+        for word in ("SECURITY", "SCENARIO", "CHECK", "REVIEW", "VIOLATION")
+    ):
+        return "Security"
+    return "Other"
+
+
+def _audit_rows(events) -> list[dict[str, str]]:
+    return [
+        {
+            "Timestamp": event.timestamp.isoformat(),
+            "Category": _audit_category(event.action, event.result),
+            "Result": event.result,
+            "Actor": event.actor,
+            "Identity": event.target_identity,
+            "Action": event.action,
+            "Old State": event.old_state,
+            "New State": event.new_state,
+            "Reason": event.reason,
+            "Event ID": event.event_id,
+            "Correlation ID": event.correlation_id,
+        }
+        for event in events
+    ]
+
+
+def _render_security_scenarios() -> None:
+    st.subheader("Security Scenario Lab")
+    st.warning(
+        "Each scenario intentionally creates a local security problem for learning. "
+        "No real credential value or cloud resource is used. Preview and confirmation are required."
+    )
+    scenario_type = st.selectbox(
+        "Scenario",
+        tuple(scenario.scenario_type for scenario in SCENARIOS),
+        format_func=lambda value: next(
+            scenario.title for scenario in SCENARIOS if scenario.scenario_type == value
+        ),
+        key="security_scenario_type",
+    )
+    definition = next(
+        scenario for scenario in SCENARIOS if scenario.scenario_type == scenario_type
+    )
+    st.caption(definition.purpose)
+    candidates = eligible_employees(settings.database_path, scenario_type)
+    employee_id = None
+    if candidates:
+        employee_id = st.selectbox(
+            "Scenario target",
+            tuple(employee.employee_id for employee in candidates),
+            format_func=lambda identifier: next(
+                f"{employee.display_name} · {identifier} · {employee.job_role}"
+                for employee in candidates
+                if employee.employee_id == identifier
+            ),
+            key="security_scenario_target",
+        )
+    else:
+        st.info("Target: `workload:legacy-reporting-app` (simulated workload identity)")
+
+    if st.button("Preview Security Scenario", key="preview_security_scenario"):
+        try:
+            st.session_state["security_scenario_plan"] = preview_security_scenario(
+                settings.database_path, scenario_type, employee_id
+            )
+        except ValueError as error:
+            st.error(str(error))
+
+    plan = st.session_state.get("security_scenario_plan")
+    if plan and plan.scenario_type == scenario_type:
+        risk_col, target_col = st.columns(2)
+        risk_col.metric("Risk", plan.risk.value)
+        target_col.metric("Target", plan.target_identity)
+        st.markdown(f"**Expected finding:** {plan.title}")
+        st.json(plan.evidence)
+        if any(
+            (
+                plan.to_remove.groups,
+                plan.to_remove.applications,
+                plan.to_remove.permissions,
+            )
+        ):
+            st.markdown("#### Simulated access to remove")
+            _access_columns(plan.to_remove)
+        if any((plan.to_add.groups, plan.to_add.applications, plan.to_add.permissions)):
+            st.markdown("#### Simulated access to add")
+            _access_columns(plan.to_add)
+        if plan.new_status:
+            st.write(f"Simulated status after creation: **{plan.new_status.value}**")
+        confirmed = st.checkbox(
+            "I understand this intentionally creates a simulated security finding",
+            key=f"confirm_security_scenario_{plan.scenario_type}",
+        )
+        if st.button(
+            "Create Scenario and Finding",
+            type="primary",
+            disabled=not confirmed,
+            key="execute_security_scenario",
+        ):
+            try:
+                finding_id, correlation_id = create_security_scenario(
+                    settings.database_path, plan
+                )
+                st.session_state["security_center_message"] = (
+                    f"Security finding {finding_id} created · correlation {correlation_id}"
+                )
+                del st.session_state["security_scenario_plan"]
+                st.rerun()
+            except RuntimeError as error:
+                st.error(str(error))
+
+
+def _render_security_findings() -> None:
+    st.subheader("Security Findings")
+    status_col, risk_col, type_col, target_col = st.columns([1, 1, 1.7, 1.5])
+    with status_col:
+        status = st.selectbox(
+            "Status", ("All", "OPEN", "REMEDIATED"), key="finding_status"
+        )
+    with risk_col:
+        risk = st.selectbox(
+            "Risk", ("All", *(item.value for item in RiskLevel)), key="finding_risk"
+        )
+    with type_col:
+        scenario_type = st.selectbox(
+            "Scenario type",
+            ("All", *(scenario.scenario_type for scenario in SCENARIOS)),
+            key="finding_scenario",
+        )
+    with target_col:
+        target_search = st.text_input(
+            "Target contains", key="finding_target"
+        ).strip().lower()
+
+    findings = list_security_findings(
+        settings.database_path,
+        status=None if status == "All" else status,
+        risk=None if risk == "All" else risk,
+        scenario_type=None if scenario_type == "All" else scenario_type,
+    )
+    if target_search:
+        findings = [
+            finding
+            for finding in findings
+            if target_search in finding.target_identity.lower()
+        ]
+    st.dataframe(
+        [
+            {
+                "Created": finding.created_at.isoformat(),
+                "Risk": finding.risk.value,
+                "Status": finding.status.value,
+                "Target": finding.target_identity,
+                "Scenario": finding.title,
+                "Recommendation": finding.recommendation,
+                "Correlation ID": finding.correlation_id,
+            }
+            for finding in findings
+        ],
+        width="stretch",
+        hide_index=True,
+    )
+    if not findings:
+        st.caption("No security findings match these filters.")
+
+
+def _render_audit_events() -> None:
+    st.subheader("Unified Audit Events")
+    all_events = list_audit_events(settings.database_path, limit=1000)
+    category_col, result_col, search_col = st.columns([1.2, 1, 2])
+    with category_col:
+        category = st.selectbox(
+            "Category",
+            ("All", "Lifecycle", "Access changes", "Security", "Failed operations"),
+            key="audit_category",
+        )
+    with result_col:
+        result = st.selectbox(
+            "Result", ("All", "SUCCESS", "FAILURE"), key="audit_result"
+        )
+    with search_col:
+        search = st.text_input(
+            "Search actor, identity, action, or correlation",
+            key="audit_search",
+        ).strip().lower()
+    events = []
+    for event in all_events:
+        event_category = _audit_category(event.action, event.result)
+        if category != "All" and event_category != category:
+            continue
+        if result != "All" and event.result != result:
+            continue
+        searchable = (
+            f"{event.actor} {event.target_identity} {event.action} {event.correlation_id}"
+        ).lower()
+        if search and search not in searchable:
+            continue
+        events.append(event)
+    st.metric("Matching audit events", len(events))
+    st.dataframe(_audit_rows(events), width="stretch", hide_index=True)
+
+
+def _render_identity_timeline() -> None:
+    st.subheader("Identity Timeline")
+    all_events = list_audit_events(settings.database_path, limit=1000)
+    targets = tuple(sorted({event.target_identity for event in all_events}))
+    if not targets:
+        st.info("Execute a lifecycle operation or security scenario to create a timeline.")
+        return
+    target = st.selectbox("Identity or workload", targets, key="timeline_target")
+    events = [event for event in reversed(all_events) if event.target_identity == target]
+    st.dataframe(_audit_rows(events), width="stretch", hide_index=True)
+
+
+def _render_privileged_activity() -> None:
+    st.subheader("Privileged Activity")
+    privileged_targets = {
+        review.employee.employee_id
+        for review in review_all(settings.database_path)
+        if review.privileged
+    }
+    events = [
+        event
+        for event in list_audit_events(settings.database_path, limit=1000)
+        if event.target_identity in privileged_targets
+        or "PRIVILEGED" in event.action
+        or "administrator" in event.new_state.lower()
+    ]
+    st.metric("Privileged identities", len(privileged_targets))
+    st.dataframe(_audit_rows(events), width="stretch", hide_index=True)
+    if not events:
+        st.caption("No privileged activity has been recorded yet.")
+
+
+def _render_troubleshooting() -> None:
+    st.subheader("Troubleshooting Assistant")
+    findings = list_security_findings(settings.database_path, status="OPEN")
+    if not findings:
+        st.success("No open security findings require troubleshooting.")
+        return
+    finding_id = st.selectbox(
+        "Open finding",
+        tuple(finding.finding_id for finding in findings),
+        format_func=lambda identifier: next(
+            f"{finding.risk.value} · {finding.title} · {finding.target_identity}"
+            for finding in findings
+            if finding.finding_id == identifier
+        ),
+        key="troubleshooting_finding",
+    )
+    finding = next(item for item in findings if item.finding_id == finding_id)
+    st.markdown(f"**Why it matters:** {finding.description}")
+    st.json(finding.evidence)
+    st.markdown("#### Investigation checklist")
+    for index, step in enumerate(troubleshooting_steps(finding), start=1):
+        st.write(f"{index}. {step}")
+    st.info(f"Recommended action: {finding.recommendation}")
+    confirmed = st.checkbox(
+        "I confirm simulated remediation of this finding",
+        key=f"confirm_security_remediation_{finding.finding_id}",
+    )
+    if st.button(
+        "Remediate Finding",
+        type="primary",
+        disabled=not confirmed,
+        key="remediate_security_finding",
+    ):
+        try:
+            correlation_id, count = remediate_security_finding(
+                settings.database_path, finding.finding_id
+            )
+            st.session_state["security_center_message"] = (
+                f"Remediated {count} finding(s) for {finding.target_identity} · "
+                f"correlation {correlation_id}"
+            )
+            st.rerun()
+        except (ValueError, RuntimeError) as error:
+            st.error(str(error))
+
+
+def render_security_audit() -> None:
+    st.header("Security & Audit Center")
+    st.caption(
+        "Investigate lifecycle changes, policy violations, failed control checks, "
+        "privileged activity, and simulated security cases."
+    )
+    if message := st.session_state.pop("security_center_message", None):
+        st.success(message)
+    statistics = audit_statistics(settings.database_path)
+    event_col, failed_col, open_col, closed_col = st.columns(4)
+    event_col.metric("Audit events", statistics["events"])
+    failed_col.metric("Failed operations", statistics["failed"])
+    open_col.metric("Open findings", statistics["open_findings"])
+    closed_col.metric("Remediated findings", statistics["remediated_findings"])
+
+    scenario_tab, finding_tab, audit_tab, timeline_tab, privileged_tab, help_tab = st.tabs(
+        (
+            "Scenario Lab",
+            "Security Findings",
+            "Audit Events",
+            "Identity Timeline",
+            "Privileged Activity",
+            "Troubleshooting",
+        )
+    )
+    with scenario_tab:
+        _render_security_scenarios()
+    with finding_tab:
+        _render_security_findings()
+    with audit_tab:
+        _render_audit_events()
+    with timeline_tab:
+        _render_identity_timeline()
+    with privileged_tab:
+        _render_privileged_activity()
+    with help_tab:
+        _render_troubleshooting()
+
+
 if page == "Overview":
     render_overview()
 elif page == "Organization Explorer":
@@ -819,6 +1169,8 @@ elif page == "JML Operations":
     render_jml_operations()
 elif page == "Access Review":
     render_access_review()
+elif page == "Security & Audit":
+    render_security_audit()
 else:
     render_access_matrix()
 
@@ -832,4 +1184,4 @@ with st.expander("Runtime details"):
         }
     )
 
-st.caption("CILAMP Phase 3 · Cloud/IAM-first · Simulation-only")
+st.caption("CILAMP Phase 4 · Cloud/IAM-first · Simulation-only")
