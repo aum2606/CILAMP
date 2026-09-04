@@ -288,6 +288,18 @@ The implemented foundation enforces these controls:
 
 These controls are verified by automated tests where practical.
 
+## 13.2 Phase 1 Access Controls
+
+- Employee identities are fictional, deterministic, and use the reserved `example.cilamp` domain.
+- Every job role is compatible with exactly one business department in the current model.
+- Effective access is derived from the authoritative role catalog rather than direct user grants.
+- Normal business roles do not receive `cloud.ops.scoped` administration permission.
+- Developer tests prove that Finance, HR, and scoped cloud-administration permissions are not granted.
+- Privileged roles are explicitly marked for later access-review handling.
+- Search query values are parameterized; the only dynamically selected distribution columns come from a fixed allowlist.
+
+Phase 1 models expected access. Detection and remediation of actual-vs-expected access belongs to Phase 3.
+
 ---
 
 # 14. Logging Rules

@@ -607,6 +607,46 @@ If the database is unhealthy, verify the configured path and write permissions. 
 
 ---
 
+# 24. Phase 1 — Organization Model and Access Matrix
+
+## What It Is
+
+The organization model connects business facts—department and job role—to expected identity access. The access matrix shows the complete path from role to groups, applications, and permissions.
+
+## Why Enterprises Use It
+
+Without an authoritative model, administrators grant access case by case, creating inconsistency and privilege creep. A role catalog makes onboarding predictable and gives access reviewers a baseline for deciding whether access is justified.
+
+## Where It Is Implemented
+
+- `src/cilamp/domain.py`: identity and access objects.
+- `src/cilamp/iam_catalog.py`: departments, roles, groups, applications, permissions, and mappings.
+- `src/cilamp/organization.py`: deterministic 500-employee HR-source simulation.
+- `src/cilamp/repository.py`: idempotent persistence, queries, and effective-access lookup.
+- `dashboard/app.py`: Organization Explorer, profiles, distributions, and Access Matrix.
+
+## How to Demonstrate It Manually
+
+1. Open Overview and show 500 employees across six departments and ten roles.
+2. Open Organization Explorer and filter Engineering → Developer.
+3. Open an employee profile and trace their role-derived groups, applications, and permissions.
+4. Open Access Matrix and compare Developer with Finance Manager or IT Administrator.
+5. Point out that access to an application does not automatically equal administrative permission.
+
+## Safe Failure Scenario
+
+Search for a nonexistent employee or choose a department/role combination with no matching identity. The UI should show zero matches without changing data. For a policy check, inspect the Developer row and verify it has no Finance or HR permission.
+
+## Troubleshooting
+
+If counts are missing, check SQLite health and rerun the application so idempotent initialization completes. If access looks wrong, first inspect the employee's department and job role, then compare the role entry in `iam_catalog.py`; do not patch individual users to hide a catalog error.
+
+## Interview Explanation
+
+> I modeled a fictional 500-employee enterprise with department-compatible job roles. A single authoritative catalog maps each role to groups, applications, and least-privilege permissions. The Streamlit explorer makes effective access understandable, while deterministic data and automated tests keep the access baseline reproducible.
+
+---
+
 # Concepts Still To Be Added
 
 Claude/Codex should add detailed notes as these are implemented:

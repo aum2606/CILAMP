@@ -335,3 +335,37 @@ Live mode cannot be previewed early. A later cloud-integration phase must delibe
 ## Consequences
 
 Future live-lab work must update configuration validation, the security model, tests, and the dashboard together.
+
+---
+
+# ADR-013 — Deterministic Role-Driven Organization Seed
+
+**Date:** 2026-09-04
+
+**Status:** ACCEPTED
+
+## Context
+
+Phase 1 needs a repeatable 500-employee enterprise model for demonstrations and tests without introducing real personal data or a data-generation dependency.
+
+## Options Considered
+
+1. Randomly generate employees on every startup.
+2. Commit a large CSV containing 500 identities.
+3. Generate deterministic fictional identities from a small role distribution and name catalog.
+
+## Decision
+
+Use deterministic generation and persist the resulting identities idempotently in SQLite. Expected groups, applications, and permissions are derived from a single role catalog.
+
+## Reason
+
+The same identity always has the same role and expected access, making IAM demonstrations, tests, and troubleshooting reproducible. The compact catalog remains easier to review than a large committed dataset.
+
+## Trade-offs
+
+The population is representative rather than statistically realistic, and all Phase 1 employees are active. Lifecycle-driven status changes belong to Phase 2.
+
+## Consequences
+
+Changes to roles or seeded distributions require corresponding IAM documentation and tests. Random access assignment and direct user grants must not be introduced as default behavior.

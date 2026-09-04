@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 PROJECT_NAME = "Cloud Identity Lifecycle & Access Management Platform"
 PROJECT_SHORT_NAME = "CILAMP"
-CURRENT_PHASE = "Phase 0 — Foundation"
+CURRENT_PHASE = "Phase 1 — Organization & IAM Model"
 
 
 @dataclass(frozen=True)
@@ -18,7 +18,7 @@ class ModuleStatus:
 
 
 MODULE_STATUSES = (
-    ModuleStatus("Organization Model", "Not Started", "Employees, roles, groups, and applications"),
+    ModuleStatus("Organization Model", "Complete", "Employees, roles, groups, and applications"),
     ModuleStatus("JML Engine", "Not Started", "Joiner, Mover, and Leaver workflows"),
     ModuleStatus("RBAC", "Not Started", "Role-based access and least-privilege checks"),
     ModuleStatus("Audit", "Not Started", "Identity and access event history"),
@@ -30,9 +30,9 @@ MODULE_STATUSES = (
 
 
 RECENT_MILESTONES = (
+    "Organization and IAM model created for 500 fictional employees",
+    "Role-to-group-to-application-to-permission access matrix implemented",
     "Phase 0 repository and security guardrails established",
-    "Modular Python and SQLite foundation created",
-    "Streamlit Project Control Center made available",
 )
 
 

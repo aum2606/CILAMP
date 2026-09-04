@@ -69,7 +69,7 @@ Display:
 
 # Phase 1 — Organization & IAM Model
 
-**Status:** NOT STARTED
+**Status:** COMPLETE
 
 ## Goal
 
@@ -133,14 +133,14 @@ Display:
 
 ## Acceptance Criteria
 
-- [ ] 500 fictional employees exist.
-- [ ] Every employee has valid department/role/status.
-- [ ] Roles map to appropriate access.
-- [ ] Unrelated access is not granted by default.
-- [ ] Search and filters work.
-- [ ] Access matrix is visually inspectable.
-- [ ] Tests validate model rules.
-- [ ] Git milestone committed.
+- [x] 500 fictional employees exist.
+- [x] Every employee has valid department/role/status.
+- [x] Roles map to appropriate access.
+- [x] Unrelated access is not granted by default.
+- [x] Search and filters work.
+- [x] Access matrix is visually inspectable.
+- [x] Tests validate model rules.
+- [x] Git milestone committed.
 
 ---
 

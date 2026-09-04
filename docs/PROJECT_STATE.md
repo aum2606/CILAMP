@@ -12,18 +12,18 @@
 
 ## Current Status
 
-**Current Phase:** Phase 0 — Project Foundation
+**Current Phase:** Phase 1 — Organization & IAM Model
 
-**Current Milestone:** Phase 0 foundation completed and locally validated
+**Current Milestone:** Phase 1 organization model completed and locally validated
 
-**Overall Status:** COMPLETE — waiting for the project owner to approve Phase 1
+**Overall Status:** COMPLETE — waiting for the project owner to approve Phase 2
 
 ## Phase Status
 
 | Phase | Name | Status |
 |---|---|---|
 | 0 | Project Foundation | COMPLETE |
-| 1 | Organization & IAM Model | NOT STARTED |
+| 1 | Organization & IAM Model | COMPLETE |
 | 2 | Joiner-Mover-Leaver Engine | NOT STARTED |
 | 3 | RBAC & Access Review | NOT STARTED |
 | 4 | Security & Audit Center | NOT STARTED |
@@ -36,40 +36,53 @@
 
 ## Completed Work
 
-- Initialized the Git repository and persistent agent instructions.
-- Added secure ignore rules and a placeholder-only `.env.example`.
-- Established the installable Python package and dependency definitions.
-- Added simulation-only configuration validation that fails closed for live mode.
-- Added idempotent SQLite initialization, schema metadata, an empty employee store, and a health check.
-- Added the Streamlit Project Control Center with phase, mode, health, employee count, module status, cloud status, and milestones.
-- Added seven automated checks covering configuration, SQLite, project status, and a headless dashboard render.
-- Added startup instructions and updated architecture, security, decision, learning, demo, and troubleshooting documentation.
-- Verified a real Streamlit server start and an `ok` response from its health endpoint.
+### Phase 0
+
+- Established the secure Git/Python/Streamlit/SQLite foundation and repository memory.
+- Enforced simulation-only configuration and verified application/database health.
+
+### Phase 1
+
+- Defined provider-independent employee, department, job-role, group, application, permission, and effective-access objects.
+- Created an authoritative catalog containing six departments, ten job roles, thirteen groups, ten applications, and thirteen permissions.
+- Created a deterministic distribution of exactly 500 unique fictional active employees.
+- Enforced department/role compatibility and role-derived access.
+- Added schema version 2 and a non-destructive migration from the Phase 0 employee table.
+- Added normalized SQLite catalog/mapping tables and idempotent organization seeding.
+- Added parameterized employee search plus department, role, and status filters.
+- Added Overview, Organization Explorer, employee profile, and Access Matrix views.
+- Marked privileged roles and documented that application assignment is distinct from administrative permission.
+- Verified the entire Phase 1 UI through headless page tests and a live Streamlit health check.
 
 ## In-Progress Work
 
-None. Phase 0 is complete. Do not begin Phase 1 without explicit approval.
+None. Phase 1 is complete. Do not begin Phase 2 without explicit approval.
 
 ## Important Architecture State
 
 ```text
-Streamlit Project Control Center
-          ↓
-Simulation-only configuration boundary
-          ↓
-SQLite initialization and health
+Fictional HR source / deterministic seed
+                 ↓
+Provider-independent identity + IAM catalog
+                 ↓
+Normalized SQLite organization repository
+                 ↓
+Search / filters / role-derived effective access
+                 ↓
+Streamlit Overview + Organization Explorer + Access Matrix
 ```
 
-The current package contains only foundation support modules. Domain, lifecycle, RBAC, audit, and cloud connector packages are intentionally deferred until their approved phases. Provider-specific APIs must remain separate from future lifecycle and policy logic.
+Expected access is currently calculated from a single authoritative role catalog. Direct grants, actual-vs-expected access, JML operations, and audit events are intentionally not implemented yet. Provider-specific APIs remain absent.
 
 ## Important User Decisions
 
 1. CILAMP remains Cloud/IAM-first and UI-first.
-2. Work proceeds one approved phase at a time.
-3. Simulation must be stable before live cloud integration.
-4. No hardcoded secrets, broad production credentials, silent cloud writes, or fake live results.
-5. The repository—not chat memory—is the long-term source of truth.
-6. Phase 0 must stop before Phase 1 begins.
+2. Work proceeds one explicitly approved phase at a time.
+3. Phase 1 uses deterministic fictional data rather than real identities or random access.
+4. Access comes from department-compatible job roles, with groups preferred over direct grants.
+5. Simulation must be stable before live cloud integration.
+6. No hardcoded secrets, broad production credentials, silent cloud writes, or fake live results.
+7. The repository—not chat memory—is the long-term source of truth.
 
 ## Known Issues
 
@@ -79,21 +92,23 @@ The current package contains only foundation support modules. Domain, lifecycle,
 
 **Severity:** Low
 
-**Description:** The managed Windows sandbox restricted Python-created temporary directories during test cleanup.
+**Description:** The managed Windows sandbox restricts cleanup of some Python-created temporary directories used internally by Streamlit's test framework.
 
-**Impact:** None on application behavior; all seven tests passed.
+**Impact:** None on application behavior or assertions; all 15 tests passed.
 
-**Workaround:** Keep test artifacts and `TEMP`/`TMP` inside an approved writable directory when running in a similarly restricted environment.
+**Workaround:** Direct `TEMP`/`TMP` to an approved writable directory and remove inaccessible sandbox artifacts with appropriate workspace permission.
 
-**Planned Fix:** No product change required; retain the workflow in `docs/TROUBLESHOOTING.md`.
+**Planned Fix:** No CILAMP product change required; workflow remains in `docs/TROUBLESHOOTING.md`.
 
 ## Test Status
 
-**Last Test Run:** 2026-09-03
+**Last Test Run:** 2026-09-04
 
-**Command:** `python -m pytest` with `TEMP`/`TMP` directed to the writable project data directory for the managed sandbox
+**Command:** `python -m pytest` with managed-sandbox `TEMP`/`TMP` directed to the project data directory
 
-**Result:** 7 passed, 0 failed
+**Result:** 15 passed, 0 failed
+
+**Coverage:** Configuration safety, schema migration, database health, IAM catalog integrity, least-privilege exclusions, deterministic employee generation, role compatibility, organization persistence/idempotency, filters, effective access, and all three dashboard pages
 
 **Dashboard Smoke Check:** Streamlit started on local port 8502; `/_stcore/health` returned `ok`
 
@@ -112,10 +127,10 @@ No cloud SDK is invoked and no cloud resource was read or modified.
 
 ## Last Relevant Git Commit
 
-**Commit:** `8961c75`
+**Commit:** Pending Phase 1 milestone commit at the time of this state update
 
-**Message:** `feat(phase-0): establish project foundation`
+**Message:** `feat(phase-1): implement organization and IAM model`
 
 ## Exact Next Recommended Task
 
-Wait for the project owner to validate the Phase 0 dashboard and explicitly approve **Phase 1 — Organization & IAM Model**. Phase 1 should then model approximately 500 fictional employees, departments, roles, groups, applications, permissions, and a visual access matrix. Do not implement Phase 1 automatically.
+Wait for the project owner to validate the Phase 1 dashboard and explicitly approve **Phase 2 — Joiner-Mover-Leaver Engine**. Phase 2 should use this role catalog to preview and execute simulated joiner, mover, and leaver operations with before/after access changes and audit records. Do not implement Phase 2 automatically.

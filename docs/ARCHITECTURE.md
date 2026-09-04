@@ -343,7 +343,7 @@ The UI must clearly display the current mode.
 
 # 9. Repository Structure
 
-Phase 0 implements only the directories needed by the foundation:
+The repository currently contains the Phase 0 foundation and Phase 1 organization model:
 
 ```text
 CILAMP/
@@ -357,13 +357,17 @@ CILAMP/
 ├── src/cilamp/
 │   ├── config.py             Simulation-only configuration boundary
 │   ├── database.py           SQLite initialization and health
+│   ├── domain.py             Provider-independent identity/access objects
+│   ├── iam_catalog.py        Authoritative expected-access catalog
+│   ├── organization.py       Deterministic fictional HR source
+│   ├── repository.py         Organization persistence and queries
 │   └── project_status.py     Phase/module presentation metadata
 ├── data/                     Ignored local SQLite runtime data
 ├── tests/                    Phase 0 automated checks
 └── docs/                     Project memory and IAM documentation
 ```
 
-Domain, lifecycle, policy, audit, service, and connector packages are added only when their roadmap phase requires them. This avoids empty architecture and keeps cloud-provider APIs out of the foundation.
+Lifecycle, policy, audit, service, and connector packages are added only when their roadmap phase requires them. This avoids empty architecture and keeps cloud-provider APIs out of the organization model.
 
 ## 9.1 Phase 0 Runtime Flow
 
@@ -377,7 +381,24 @@ SQLite idempotent initialization
 Database/system/module health presentation
 ```
 
-The Phase 0 database contains a schema metadata table and an empty employee table. Phase 1 owns the organization model and seed data.
+The Phase 1 database uses schema version 2 and contains normalized catalogs for departments, roles, groups, applications, permissions, and their role mappings. A deterministic seed creates exactly 500 fictional active employees. Initialization is idempotent and migrates a Phase 0 employee table by adding the email field without deleting existing rows.
+
+## 9.2 Phase 1 Runtime Flow
+
+```text
+Authoritative IAM catalog
+  department + compatible job role
+                 ↓
+        Deterministic employee seed
+                 ↓
+         Normalized SQLite store
+                 ↓
+ Search/filter + effective role access
+                 ↓
+ Streamlit Organization Explorer / Access Matrix
+```
+
+`domain.py` defines provider-independent identity and access objects. `iam_catalog.py` defines expected access policy, `organization.py` creates fictional source identities, and `repository.py` owns SQLite persistence and queries. No Microsoft, Azure, or AWS APIs are present.
 
 ---
 

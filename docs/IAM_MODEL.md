@@ -236,14 +236,70 @@ It is not automatically wrong, but it requires justification.
 
 ---
 
-# 8. Future Enhancements
+# 8. Model Status
 
-During Phase 1, add:
+Implemented in Phase 1:
 
 - Group naming convention.
 - Permission catalog.
 - Application sensitivity.
 - Privileged vs non-privileged role flag.
 - Department-to-role compatibility.
-- Manager hierarchy if useful.
-- Sample contractors/temporary workers if useful.
+
+Possible later additions, only when justified by a lifecycle scenario:
+
+- Manager hierarchy.
+- Contractors and temporary workers.
+
+---
+
+# 9. Phase 1 Implemented Model
+
+The executable source of truth is `src/cilamp/iam_catalog.py`. This document explains that catalog in business terms.
+
+## 9.1 Group Naming Convention
+
+Human-readable group names are used in simulation mode so the IAM story is clear during demonstrations:
+
+- `All Employees` provides baseline access.
+- Department groups use the department name, such as `Engineering` or `Finance`.
+- Functional groups use plural role/purpose names, such as `Developers` or `Finance Approvers`.
+- Privileged groups identify their function explicitly, such as `IT Administrators` and `Security Administrators`.
+
+Cloud-specific naming conventions will be defined with the relevant Entra/Azure/AWS connector instead of being guessed during local simulation.
+
+## 9.2 Implemented Access Matrix
+
+| Role | Groups beyond baseline | Applications beyond Internal Portal | Effective permissions | Privileged |
+|---|---|---|---|---|
+| Developer | Engineering, Developers | GitHub, Jira, Azure Portal, AWS Console | source.read_write, issues.manage, cloud.dev.read | No |
+| Engineering Manager | Engineering, People Managers | GitHub, Jira, Azure Portal | source.read_write, issues.manage, engineering.reports, cloud.dev.read | No |
+| Finance Analyst | Finance | Finance Portal | finance.read | No |
+| Finance Manager | Finance, Finance Approvers, People Managers | Finance Portal | finance.read, finance.approve | No |
+| HR Administrator | HR, HR Administrators | HR Portal | hr.manage | Yes |
+| Sales User | Sales | CRM | crm.use | No |
+| Sales Manager | Sales, People Managers | CRM | crm.use, crm.reports | No |
+| IT Administrator | IT, IT Administrators | Jira, Azure Portal, AWS Console | issues.manage, cloud.ops.scoped | Yes |
+| Security Administrator | IT, Security Administrators | Security Center, Azure Portal, AWS Console | security.audit | Yes |
+| Marketing User | Marketing | Marketing Hub | marketing.manage | No |
+
+Every role also receives `internal.read` through the baseline model. An application assignment such as Azure Portal or AWS Console does not itself mean cloud administration; the permission catalog determines allowed operations.
+
+## 9.3 Employee Population
+
+The deterministic simulation seed creates exactly 500 active fictional identities:
+
+| Role | Employees |
+|---|---:|
+| Developer | 120 |
+| Engineering Manager | 30 |
+| Finance Analyst | 55 |
+| Finance Manager | 15 |
+| HR Administrator | 35 |
+| Sales User | 95 |
+| Sales Manager | 25 |
+| IT Administrator | 35 |
+| Security Administrator | 15 |
+| Marketing User | 75 |
+
+Employee IDs and emails are unique. Names are fictional and emails use `example.cilamp`; no real personal or cloud-directory data is present.

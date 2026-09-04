@@ -38,6 +38,19 @@ Until Phase 1 is approved and implemented, demonstrate only the Project Control 
 
 Do not demonstrate the later workflows below as if they already exist; they are the planned final-project story.
 
+## Phase 1 Organization Demo
+
+Phase 1 is now available:
+
+1. On Overview, show the 500-employee count and department/role distributions.
+2. Open Organization Explorer and search by name, employee ID, or fictional email.
+3. Filter by department and role; use Engineering → Developer as the clearest example.
+4. Open a profile and explain that access is inherited from the approved job role.
+5. Open Access Matrix and trace role → groups → applications → permissions.
+6. Compare Developer and IT Administrator to demonstrate least privilege and privileged-role identification.
+
+Be explicit that the data is simulated and that Entra ID, Azure, and AWS remain disconnected.
+
 ## Demo 1 — Overview
 
 Show:

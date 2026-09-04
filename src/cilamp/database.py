@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -42,10 +42,24 @@ def initialize_database(path: Path) -> None:
                 CREATE TABLE IF NOT EXISTS employees (
                     employee_id TEXT PRIMARY KEY,
                     display_name TEXT NOT NULL,
+                    email TEXT NOT NULL DEFAULT '',
                     department TEXT NOT NULL,
                     job_role TEXT NOT NULL,
                     status TEXT NOT NULL CHECK (status IN ('ACTIVE', 'DISABLED'))
                 )
+                """
+            )
+            columns = {
+                row[1] for row in connection.execute("PRAGMA table_info(employees)")
+            }
+            if "email" not in columns:
+                connection.execute(
+                    "ALTER TABLE employees ADD COLUMN email TEXT NOT NULL DEFAULT ''"
+                )
+            connection.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_email_unique
+                ON employees(email) WHERE email <> ''
                 """
             )
             connection.execute(
