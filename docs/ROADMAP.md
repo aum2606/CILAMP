@@ -444,7 +444,7 @@ Create **Azure Access** page displaying:
 
 # Phase 7 — AWS IAM Integration
 
-**Status:** NOT STARTED
+**Status:** COMPLETE
 
 ## Goal
 
@@ -487,11 +487,11 @@ Create **AWS Access** page displaying:
 
 ## Acceptance Criteria
 
-- [ ] AWS access model follows least privilege.
-- [ ] Root credentials are never used.
-- [ ] Policy behavior is understandable visually.
-- [ ] Tests/mocks cover core behavior.
-- [ ] Git milestone committed.
+- [x] AWS access model follows least privilege.
+- [x] Root credentials are never used.
+- [x] Policy behavior is understandable visually.
+- [x] Tests/mocks cover core behavior.
+- [x] Git milestone committed.
 
 ---
 

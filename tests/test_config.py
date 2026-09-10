@@ -68,3 +68,22 @@ def test_azure_only_live_lab_requires_subscription_and_keeps_entra_disabled(
     assert settings.azure_subscription_id == "azure-lab-subscription"
     assert settings.azure_resource_group == "rg-cilamp-test"
     assert not settings.entra_lab_enabled
+
+
+def test_aws_only_live_lab_uses_non_secret_scope_controls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CILAMP_MODE", "LIVE_LAB")
+    monkeypatch.setenv("CILAMP_ENTRA_LAB_ENABLED", "false")
+    monkeypatch.delenv("CILAMP_ENTRA_TENANT_ID", raising=False)
+    monkeypatch.setenv("CILAMP_AWS_LAB_ENABLED", "true")
+    monkeypatch.setenv("CILAMP_AWS_ACCOUNT_ID", "123456789012")
+    monkeypatch.setenv("CILAMP_AWS_PROFILE", "cilamp-lab-sso")
+    monkeypatch.setenv("CILAMP_AWS_ROLE_PATH", "/cilamp/")
+    monkeypatch.setenv("CILAMP_AWS_ALLOWED_BUCKETS", "cilamp-dev, cilamp-reports")
+
+    settings = load_settings()
+
+    assert settings.aws_lab_enabled
+    assert settings.aws_profile == "cilamp-lab-sso"
+    assert settings.aws_allowed_buckets == ("cilamp-dev", "cilamp-reports")

@@ -888,3 +888,42 @@ Enterprises use Azure RBAC to avoid shared administrator credentials and limit t
 “I modeled Azure RBAC as a security principal, role definition, and scope rather than merely listing role names. The simulation demonstrates inheritance, narrow resource access, management/data-plane separation, and managed identities replacing application secrets. The optional live adapter performs tenant-verified, resource-group-scoped ARM reads only. The evaluator reports allowed, not granted, or unknown so custom roles and conditions are not misrepresented.”
 
 ---
+
+# Phase 7 Learning Note — AWS IAM, STS, and Policy Evaluation
+
+## What it is
+
+AWS IAM authenticates principals and authorizes requests with policy documents. Roles are assumable identities; AWS STS supplies temporary role-session credentials. A request is denied by default, a matching Allow can grant it, and any applicable explicit Deny overrides an Allow.
+
+## Where it is implemented
+
+- `src/cilamp/connectors/aws/simulation.py`: deterministic least-privilege IAM lab.
+- `src/cilamp/connectors/aws/boto.py`: account-verified, root-rejecting, read-only discovery.
+- `src/cilamp/aws_policy.py`: explainable cached policy matching.
+- `src/cilamp/aws_repository.py`: AWS display cache and operation evidence.
+- `dashboard/app.py`: eight-tab AWS Access control center.
+
+## How to demonstrate it
+
+1. Open **AWS Access** in `SIMULATION` and synchronize.
+2. Show the developer, workload, and security-audit roles and their trust/temporary-credential posture.
+3. Select the Developer role and `onboarding-guide.pdf`; show `s3:GetObject` is `ALLOWED`.
+4. On the same object, show `s3:DeleteObject` is `EXPLICIT DENY` and `iam:CreateUser` is `NOT GRANTED`.
+5. Select an unrelated report object and show developer read is not granted.
+6. Explain the role → STS session → narrow policy → resource path and contrast it with hardcoded long-lived keys.
+7. Finish with selected CloudTrail metadata and the synchronization correlation ID.
+
+## What you should understand
+
+- A role trust policy controls who may assume a role; a permissions policy controls what an assumed session may do.
+- S3 bucket actions commonly use a bucket ARN, while object actions use object ARNs.
+- Explicit deny and implicit deny are different: an explicit Deny overrides all applicable Allows, while no matching Allow remains denied by default.
+- Identity policies are only part of AWS authorization. Resource policies, SCPs/RCPs, permissions boundaries, session policies, conditions, tags, and request context may change the result.
+- CloudTrail is audit evidence, not the policy enforcement engine.
+- Root is never an application integration identity.
+
+## Interview explanation
+
+“I modeled AWS IAM roles, trust principals, policy statements, resource ARNs, STS sessions, and selected CloudTrail evidence behind a provider boundary. The developer example permits only selected S3 reads, explicitly denies delete, and does not grant IAM administration. Optional live discovery verifies the exact lab account, rejects root, uses a role-path and bucket allowlist, and exposes no write APIs. The evaluator is deliberately conservative because AWS combines several policy layers at request time.”
+
+---

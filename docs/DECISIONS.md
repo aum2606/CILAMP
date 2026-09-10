@@ -543,3 +543,25 @@ The local evaluator is explanatory rather than an Azure authorization oracle. It
 ## Consequences
 
 The dashboard contains no Azure RBAC writes. A future provisioning phase must use reviewed infrastructure-as-code or a separately approved change workflow. Unknown provider semantics must stay `UNKNOWN`, never be converted into a convenient allow or deny.
+
+---
+
+# ADR-019 — Guard AWS Discovery by Account, Role Path, and Resource Allowlist
+
+**Date:** 2026-09-10
+
+**Status:** ACCEPTED
+
+## Context
+
+Phase 7 must teach AWS IAM policy behavior and role-based temporary credentials without accepting access keys, using root, inventorying arbitrary resources, or presenting a partial local model as AWS's authorization engine.
+
+## Decision
+
+Use deterministic simulation plus an optional boto3 read-only adapter. Live discovery verifies the caller account with STS, rejects root, lists roles only under a configured IAM path, checks only explicitly named S3 buckets, and retrieves a bounded CloudTrail metadata window. Authentication comes from the AWS SDK profile/provider chain; CILAMP configuration has no credential values.
+
+Evaluate cached identity policies conservatively: known unconditional Deny overrides Allow; a known Allow is explanatory and retains external-control caveats; no matching Allow is `NOT GRANTED`; unsupported or conditional semantics are `UNKNOWN`.
+
+## Consequences
+
+The dashboard can explain least privilege, explicit versus implicit deny, STS, and audit evidence offline. It cannot prove a live request will succeed because resource policies, Organizations controls, boundaries, session policies, and request context remain authoritative in AWS. Any future AWS write workflow needs a separate phase and decision.

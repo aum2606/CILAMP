@@ -670,3 +670,32 @@ Azure authorization intent / investigation
 `azure_policy.py` explains effective access from principal + role + applicable scope. The simulation catalog distinguishes management-plane `Reader`/`Owner` from data-plane roles such as `Storage Blob Data Reader` and `Key Vault Secrets User`. Lack of a known grant is reported as `NOT GRANTED`, not as an explicit Azure deny. Custom, unknown, or conditional roles produce `UNKNOWN` so the local model does not fabricate certainty.
 
 Schema version 6 adds Azure resources, identities, role assignments, synchronization state, and operation history. These tables are a timestamped investigation/display projection, not Azure's enforcement point.
+
+---
+
+# 16. Phase 7 AWS IAM Integration
+
+```text
+AWS authorization investigation
+             │
+       AWS service boundary
+        ┌────┴────┐
+        │         │
+  SIMULATION   LIVE_LAB read-only boto3
+        │         │
+ fixed IAM lab   STS account/root verification
+        │         ├── IAM roles/policies under configured path
+        │         ├── explicitly allowlisted S3 buckets
+        │         └── bounded CloudTrail lookup
+        └────┬────┘
+             ▼
+ timestamped SQLite cache + conservative evaluator
+             ▼
+ ALLOWED / EXPLICIT DENY / NOT GRANTED / UNKNOWN
+             ▼
+ AWS Access dashboard
+```
+
+`src/cilamp/connectors/aws/` owns boto3 translation and has no mutation method. `aws_service.py` selects simulation or guarded live discovery; `aws_policy.py` explains cached identity-policy statements without claiming to reproduce AWS enforcement; `aws_repository.py` holds the replaceable display cache and operation evidence.
+
+Schema version 7 adds AWS resources, roles, policies, attachments, selected CloudTrail metadata, synchronization state, and operations. The live adapter uses the normal AWS SDK profile/provider chain, verifies the exact account via STS, rejects root, limits IAM listing by path and S3 checks by configured bucket name, and never accepts access keys in CILAMP configuration.

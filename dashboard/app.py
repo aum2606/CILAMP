@@ -25,6 +25,19 @@ from cilamp.azure_repository import (
     list_azure_role_assignments,
 )
 from cilamp.azure_service import AzureSafetyError, synchronize_azure
+from cilamp.aws_policy import ACTION_LABELS as AWS_ACTION_LABELS, evaluate_aws_access
+from cilamp.aws_repository import (
+    get_aws_sync_state,
+    initialize_aws_store,
+    list_aws_bindings,
+    list_aws_cloudtrail_events,
+    list_aws_operations,
+    list_aws_policies,
+    list_aws_resources,
+    list_aws_roles,
+)
+from cilamp.aws_service import AwsSafetyError, synchronize_aws
+from cilamp.connectors.aws import AwsConnectorError
 from cilamp.connectors.azure import AzureConnectorError
 from cilamp.connectors.entra import EntraConnectorError
 from cilamp.domain import RiskLevel
@@ -128,6 +141,7 @@ try:
     initialize_organization(settings.database_path)
     initialize_entra_store(settings.database_path)
     initialize_azure_store(settings.database_path)
+    initialize_aws_store(settings.database_path)
 except Exception as error:
     st.error(
         "Organization data could not be initialized. "
@@ -151,6 +165,7 @@ page = st.sidebar.radio(
         "Security & Audit",
         "Microsoft Entra",
         "Azure Access",
+        "AWS Access",
         "Access Matrix",
     ),
 )
@@ -1735,6 +1750,89 @@ def render_azure_access() -> None:
         )
 
 
+def render_aws_access() -> None:
+    st.header("AWS IAM Access")
+    st.caption("Inspect roles, policies, S3 resource access, STS identity patterns, and CloudTrail evidence. Synchronization never changes AWS.")
+    if message := st.session_state.pop("aws_message", None):
+        st.success(message)
+    state = get_aws_sync_state(settings.database_path)
+    cols = st.columns(4)
+    cols[0].metric("AWS connection", state.status)
+    cols[1].metric("Mode", settings.mode)
+    cols[2].metric("Account", settings.aws_account_label)
+    cols[3].metric("Last synchronization", state.last_synced_at.strftime("%Y-%m-%d %H:%M UTC") if state.last_synced_at else "Never")
+    st.write(f"Region: **{settings.aws_region}** · IAM role path boundary: **{settings.aws_role_path}**")
+    if settings.mode == "LIVE_LAB":
+        st.warning("LIVE LAB MODE: discovery uses STS plus read/list IAM, S3, and CloudTrail APIs. Root identities are rejected; no AWS write API is exposed.")
+    else:
+        st.info("SIMULATION MODE: no AWS SDK session or cloud request occurs.")
+    if st.button("Synchronize AWS IAM", type="primary", key="aws_sync"):
+        try:
+            correlation_id = synchronize_aws(settings)
+            st.session_state["aws_message"] = f"AWS IAM synchronization completed · correlation {correlation_id}"
+            st.rerun()
+        except (AwsConnectorError, AwsSafetyError) as error:
+            st.error(str(error))
+
+    resources = list_aws_resources(settings.database_path)
+    roles = list_aws_roles(settings.database_path)
+    policies = list_aws_policies(settings.database_path)
+    bindings = list_aws_bindings(settings.database_path)
+    events = list_aws_cloudtrail_events(settings.database_path)
+    operations = list_aws_operations(settings.database_path)
+    resources_tab, roles_tab, policies_tab, access_tab, sts_tab, audit_tab, patterns_tab, operations_tab = st.tabs(("Resources", "Roles", "Policies", "Effective Access", "STS Identity", "CloudTrail", "Credential Patterns", "AWS Operations"))
+    with resources_tab:
+        st.metric("Resources in scope", len(resources))
+        st.dataframe([{"Name": x.name, "Type": x.resource_type, "Region": x.region, "ARN": x.arn} for x in resources], width="stretch", hide_index=True)
+    with roles_tab:
+        st.metric("IAM roles", len(roles))
+        st.dataframe([{"Role": x.name, "Path": x.path, "Trusted principal": ", ".join(x.trusted_principals), "Credential posture": x.credential_mode, "ARN": x.arn} for x in roles], width="stretch", hide_index=True)
+        st.caption("Roles obtain short-lived STS sessions. CILAMP neither asks for nor stores AWS access keys.")
+    with policies_tab:
+        rows = [{"Policy": p.name, "Source": p.source, "Effect": s.effect, "Actions": ", ".join(s.actions), "Resources": ", ".join(s.resources), "Conditional": s.has_conditions} for p in policies for s in p.statements]
+        st.metric("Policies", len(policies))
+        st.dataframe(rows, width="stretch", hide_index=True)
+    with access_tab:
+        st.subheader("Allowed, explicit-deny, and not-granted access")
+        st.caption("This cached identity-policy explanation is educational, not AWS authorization proof. External policy layers and request context can change a live result.")
+        if roles and resources:
+            role_arn = st.selectbox("IAM role", tuple(x.arn for x in roles), format_func=lambda arn: next(x.name for x in roles if x.arn == arn), key="aws_role")
+            resource_arn = st.selectbox("AWS resource", tuple(x.arn for x in resources), format_func=lambda arn: next(x.name for x in resources if x.arn == arn), key="aws_resource")
+            action = st.selectbox("Requested action", tuple(AWS_ACTION_LABELS), format_func=lambda value: AWS_ACTION_LABELS[value], key="aws_action")
+            role = next(x for x in roles if x.arn == role_arn)
+            resource = next(x for x in resources if x.arn == resource_arn)
+            decision = evaluate_aws_access(role, resource, action, policies, bindings)
+            if decision.decision == "ALLOWED":
+                st.success(f"ALLOWED — {decision.rationale}")
+            elif decision.decision == "UNKNOWN":
+                st.warning(f"UNKNOWN — {decision.rationale}")
+            else:
+                st.error(f"{decision.decision} — {decision.rationale}")
+            st.write({"Role": decision.role_name, "Resource": decision.resource_name, "Action": AWS_ACTION_LABELS[decision.action], "Matched policies": list(decision.matched_policies)})
+        else:
+            st.info("Synchronize first to evaluate cached access.")
+    with sts_tab:
+        st.metric("Assumable roles", len(roles))
+        st.code("Human or workload\n  ↓ AssumeRole / federation\nAWS STS temporary session\n  ↓\nNarrow IAM policy → AWS resource")
+        st.write("Caller identity (display-safe ARN):", state.caller_arn or "Not synchronized")
+    with audit_tab:
+        st.metric("CloudTrail events", len(events))
+        st.dataframe([{"Time": x.event_time.isoformat(), "Event": x.event_name, "Identity": x.username, "Resource": x.resource_name, "Event ID": x.event_id} for x in events], width="stretch", hide_index=True)
+        st.caption("Only event metadata is cached. Raw CloudTrail event payloads are not stored or displayed.")
+    with patterns_tab:
+        bad, good = st.columns(2)
+        with bad:
+            st.error("BAD PATTERN — metadata only")
+            st.code("Application\n  ↓\nHardcoded long-lived access key\n  ↓\nAWS resource")
+        with good:
+            st.success("PREFERRED PATTERN")
+            st.code("Application or user federation\n  ↓\nIAM role + STS temporary session\n  ↓\nLeast-privilege policy\n  ↓\nAWS resource")
+    with operations_tab:
+        for limitation in state.limitations:
+            st.warning(limitation)
+        st.dataframe([{"Time": x.timestamp.isoformat(), "Mode": x.mode, "Action": x.action, "Target": x.target, "Result": x.result, "Details": x.details, "Correlation ID": x.correlation_id} for x in operations], width="stretch", hide_index=True)
+
+
 if page == "Overview":
     render_overview()
 elif page == "Organization Explorer":
@@ -1749,6 +1847,8 @@ elif page == "Microsoft Entra":
     render_microsoft_entra()
 elif page == "Azure Access":
     render_azure_access()
+elif page == "AWS Access":
+    render_aws_access()
 else:
     render_access_matrix()
 
@@ -1762,4 +1862,4 @@ with st.expander("Runtime details"):
         }
     )
 
-st.caption("CILAMP Phase 6 · Cloud/IAM-first · Azure identity and RBAC")
+st.caption("CILAMP Phase 7 · Cloud/IAM-first · AWS IAM and least privilege")

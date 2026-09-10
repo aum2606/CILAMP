@@ -515,3 +515,19 @@ Minimum intended application permissions are `User.Read.All`, `GroupMember.Read.
 - Custom roles, conditions, deny assignments, and unexpanded group membership require live evaluation and are reported as limitations or `UNKNOWN`.
 
 For live discovery, grant only the resource-group visibility required to list resources and role assignments. Do not grant Owner, User Access Administrator, or subscription-wide write authority to make the demonstration easier.
+
+---
+
+# 21. Phase 7 AWS IAM Controls
+
+- `SIMULATION` remains the safe default and creates no AWS SDK session.
+- `LIVE_LAB` requires a separate AWS guard and exact 12-digit lab account ID. `sts:GetCallerIdentity` must return that account before inventory begins.
+- Any AWS root caller ARN is rejected. Use IAM Identity Center or an assume-role profile that produces temporary credentials.
+- CILAMP has no access-key, secret-key, or session-token setting and never logs SDK credentials.
+- IAM role inventory is limited to the configured path (default `/cilamp/`). S3 account-wide listing is avoided; only configured bucket names are checked.
+- The adapter exposes only identity/read/list calls. It cannot create users, roles, policies, keys, buckets, or attachments.
+- CloudTrail lookup is bounded to 25 recent events. Only time, event name, user label, resource name, and event ID are cached; raw event JSON is excluded.
+- The evaluator honors known explicit denies before allows. An absent allow is shown as `NOT GRANTED`, not mislabeled as an explicit deny.
+- Conditions, `NotAction`, and `NotResource` produce conservative uncertainty. Resource policies, SCPs/RCPs, permissions boundaries, session policies, tag policies, and request context remain provider-side limitations.
+
+The intended live identity needs only `sts:GetCallerIdentity`, path-scoped IAM list/get access for the lab roles and policies, `s3:HeadBucket` for allowlisted lab buckets, and optional `cloudtrail:LookupEvents`. Do not attach `AdministratorAccess` to make discovery succeed.

@@ -30,6 +30,13 @@ class Settings:
     azure_subscription_label: str = "Simulation subscription"
     azure_resource_group: str = "rg-cilamp-lab"
     azure_auth_method: str = "AZURE_CLI"
+    aws_lab_enabled: bool = False
+    aws_account_id: str = ""
+    aws_account_label: str = "Simulation AWS account"
+    aws_region: str = "ap-south-1"
+    aws_profile: str = ""
+    aws_role_path: str = "/cilamp/"
+    aws_allowed_buckets: tuple[str, ...] = ()
 
 
 def _database_path(raw_path: str | None) -> Path:
@@ -54,12 +61,15 @@ def load_settings() -> Settings:
     )
     azure_tenant_id = os.getenv("CILAMP_AZURE_TENANT_ID", tenant_id).strip()
     azure_subscription_id = os.getenv("CILAMP_AZURE_SUBSCRIPTION_ID", "").strip()
+    aws_lab_enabled = os.getenv("CILAMP_AWS_LAB_ENABLED", "false").strip().lower() == "true"
+    aws_account_id = os.getenv("CILAMP_AWS_ACCOUNT_ID", "").strip()
     entra_ready = lab_enabled and bool(tenant_id)
     azure_ready = azure_lab_enabled and bool(azure_tenant_id and azure_subscription_id)
-    if mode == "LIVE_LAB" and not (entra_ready or azure_ready):
+    aws_ready = aws_lab_enabled and aws_account_id.isdigit() and len(aws_account_id) == 12
+    if mode == "LIVE_LAB" and not (entra_ready or azure_ready or aws_ready):
         raise ValueError(
-            "LIVE_LAB requires an explicitly enabled Entra or Azure dedicated lab "
-            "with its tenant and subscription identifiers."
+            "LIVE_LAB requires an explicitly enabled Entra, Azure, or AWS dedicated lab "
+            "with its provider identifier."
         )
 
     auth_method = os.getenv("CILAMP_ENTRA_AUTH_METHOD", "AZURE_CLI").strip().upper()
@@ -107,4 +117,11 @@ def load_settings() -> Settings:
         ).strip()
         or "rg-cilamp-lab",
         azure_auth_method=azure_auth_method,
+        aws_lab_enabled=aws_lab_enabled,
+        aws_account_id=aws_account_id,
+        aws_account_label=os.getenv("CILAMP_AWS_ACCOUNT_LABEL", "Simulation AWS account").strip() or "Dedicated AWS lab",
+        aws_region=os.getenv("CILAMP_AWS_REGION", "ap-south-1").strip() or "ap-south-1",
+        aws_profile=os.getenv("CILAMP_AWS_PROFILE", "").strip(),
+        aws_role_path=os.getenv("CILAMP_AWS_ROLE_PATH", "/cilamp/").strip() or "/cilamp/",
+        aws_allowed_buckets=tuple(item.strip() for item in os.getenv("CILAMP_AWS_ALLOWED_BUCKETS", "").split(",") if item.strip()),
     )

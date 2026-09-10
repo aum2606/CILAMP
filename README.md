@@ -4,7 +4,7 @@
 
 CILAMP is a simulation-first Cloud/IAM portfolio project. It will demonstrate employee identity lifecycle management, RBAC, least privilege, access review, auditability, and later safe lab integrations with Microsoft Entra ID, Azure, and AWS.
 
-The repository is currently at **Phase 6 — Azure Identity & RBAC**. It contains 500 deterministic fictional employees, JML/RBAC/security workflows, guarded Microsoft Entra integration, and an Azure authorization lab that explains resources, identities, roles, scopes, effective access, and managed identities. Simulation performs no cloud calls; this repository has not claimed a live Azure validation.
+The repository is currently at **Phase 7 — AWS IAM Integration**. It contains 500 deterministic fictional employees, JML/RBAC/security workflows, guarded Microsoft Entra and Azure integrations, and an AWS authorization lab covering roles, policies, S3 access, STS, and CloudTrail. Simulation performs no cloud calls; this repository has not claimed a live AWS validation.
 
 ## Quick start
 
@@ -27,7 +27,7 @@ The dashboard creates a local SQLite database at `data/cilamp.db`. That runtime 
 python -m pytest
 ```
 
-The tests validate configuration safety, organization/JML/RBAC behavior, security scenarios, Entra integration, Azure RBAC scope and action decisions, sanitized ARM discovery, managed-identity posture, audit evidence, and headless rendering of every dashboard page.
+The tests validate configuration safety, organization/JML/RBAC behavior, security scenarios, Entra/Azure integration, AWS policy decisions and connector guards, audit evidence, and headless rendering of every dashboard page.
 
 ## Repository layout
 
@@ -50,6 +50,7 @@ Read `docs/PROJECT_STATE.md` for the exact project status and next approved task
 - **Security & Audit:** create controlled scenarios, filter findings/events, investigate identity timelines and privileged activity, and follow remediation checklists.
 - **Microsoft Entra:** synchronize users/groups/service principals, inspect memberships and directory audit data, review connector operations, and preview confirmed simulation or allowlisted live-lab writes.
 - **Azure Access:** inspect scoped resources, identities, role assignments, allowed/not-granted actions, managed identities, credential patterns, and Azure discovery operations.
+- **AWS Access:** inspect roles, policies, allowlisted S3 resources, allowed/explicit-deny/not-granted actions, STS identity posture, CloudTrail metadata, and AWS operations.
 - **Access Matrix:** role → groups → applications → permissions, plus catalogs and privileged-role indicators.
 
 ## Optional dedicated cloud labs
@@ -61,3 +62,7 @@ Keep `CILAMP_MODE=SIMULATION` for normal demonstrations. For a dedicated lab, co
 ### Azure resources
 
 Azure live discovery is separately enabled with the Phase 6 `CILAMP_AZURE_*` settings in `.env.example`. It is read-only, tenant-verified, and restricted to one configured resource group. Give the operator Azure `Reader` at that scope and verify role-assignment visibility; the dashboard deliberately has no Azure role-assignment write action.
+
+### AWS IAM
+
+AWS live discovery uses the Phase 7 `CILAMP_AWS_*` settings in `.env.example`. It verifies the caller account with STS, rejects root, inventories only the configured IAM role path, checks only explicitly allowlisted S3 bucket names, and looks up a small CloudTrail event window. Use an IAM Identity Center or assume-role profile with the minimum read permissions; CILAMP has no access-key setting and exposes no AWS mutation API.

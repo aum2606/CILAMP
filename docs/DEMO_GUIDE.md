@@ -409,3 +409,20 @@ Technical-interviewer proof points: resource hierarchy, inherited scope, role-as
 Do not describe the local evaluator as Azure's enforcement engine or claim a live Azure result unless an actual lab synchronization succeeded.
 
 ---
+
+# Phase 7 — AWS IAM Demo
+
+1. Start in `SIMULATION`, open **AWS Access**, and synchronize.
+2. Show that all three identities are roles using temporary STS sessions, not IAM users with stored keys.
+3. In **Policies**, explain Effect + Action + Resource and the different S3 bucket/object ARNs.
+4. Show Developer → development object → `s3:GetObject` = `ALLOWED`.
+5. Show the same object → `s3:DeleteObject` = `EXPLICIT DENY` and `iam:CreateUser` = `NOT GRANTED`.
+6. Show a reporting object is outside the developer policy's resource boundary.
+7. Explain STS and contrast hardcoded keys with role-based temporary credentials.
+8. Show the selected CloudTrail event metadata and AWS operation correlation ID.
+
+Recruiter summary: “CILAMP applies the same least-privilege ideas across AWS IAM while teaching roles, policy statements, resource scoping, temporary STS credentials, and audit evidence.”
+
+Do not claim the cached evaluator is AWS's enforcement engine or that mocks prove a live AWS account works. Resource policies and organization/session controls remain external inputs.
+
+---

@@ -12,11 +12,11 @@
 
 ## Current Status
 
-**Current Phase:** Phase 6 — Azure Identity & RBAC
+**Current Phase:** Phase 7 — AWS IAM Integration
 
-**Current Milestone:** Phase 6 Azure resource authorization and managed identity completed and locally validated
+**Current Milestone:** Phase 7 AWS IAM roles, policy evaluation, STS, S3, and CloudTrail completed and locally validated
 
-**Overall Status:** COMPLETE — waiting for the project owner to validate Phase 6 and approve Phase 7
+**Overall Status:** COMPLETE — waiting for the project owner to validate Phase 7 and approve Phase 8
 
 ## Phase Status
 
@@ -29,7 +29,7 @@
 | 4 | Security & Audit Center | COMPLETE |
 | 5 | Microsoft Entra ID Integration | COMPLETE |
 | 6 | Azure Identity & RBAC | COMPLETE |
-| 7 | AWS IAM Integration | NOT STARTED |
+| 7 | AWS IAM Integration | COMPLETE |
 | 8 | Terraform / Infrastructure as Code | NOT STARTED |
 | 9 | Docker & Operationalization | NOT STARTED |
 | 10 | Unified IAM Command Center | NOT STARTED |
@@ -94,9 +94,20 @@
 - Added cached Azure resources, identities, role assignments, synchronization state, and append-only operations.
 - Added Azure Access dashboard tabs for Resources, Identities, RBAC Assignments, Effective Access, Managed Identities, Credential Patterns, and Azure Operations.
 
+### Phase 7
+
+- Added isolated deterministic AWS simulation and optional boto3 read-only connector contracts.
+- Modeled IAM roles, trust principals, managed and inline identity policies, policy statements, role-policy attachments, allowlisted S3 resources, STS caller identity, and selected CloudTrail metadata.
+- Demonstrated a Developer role that can list one development bucket and read its objects, cannot administer IAM, cannot access unrelated resources, and is explicitly denied unnecessary object deletion.
+- Added explainable `ALLOWED`, `EXPLICIT DENY`, `NOT GRANTED`, and `UNKNOWN` outcomes with wildcard action/resource matching and explicit-deny precedence.
+- Kept evaluation conservative: resource policies, SCPs/RCPs, permissions boundaries, session policies, tags, and request context remain documented provider-side limitations.
+- Added AWS account verification through `sts:GetCallerIdentity`, an unconditional root-identity rejection, IAM path restriction, explicit S3 bucket allowlist, sanitized SDK failures, and no AWS write methods.
+- Added cached resources, roles, policies, attachments, CloudTrail event metadata, synchronization state, and append-only AWS operations. Raw CloudTrail payloads and credential values are never stored.
+- Added an eight-tab AWS Access dashboard for Resources, Roles, Policies, Effective Access, STS Identity, CloudTrail, Credential Patterns, and AWS Operations.
+
 ## In-Progress Work
 
-None. Phase 6 is complete. Do not begin Phase 7 without explicit approval.
+None. Phase 7 is complete. Do not begin Phase 8 without explicit approval.
 
 ## Important Architecture State
 
@@ -111,7 +122,7 @@ Confirmed security scenario ─┬─ append-only Audit Events
                               new audit evidence + REMEDIATED status
 ```
 
-The Security & Audit Center still separates audit evidence, current policy evaluation, and case status. Phase 5 added the Entra provider boundary. Phase 6 adds a separate Azure resource authorization boundary: simulation or read-only ARM discovery → timestamped cache → provider-independent scope/action explanation → Azure Access UI. The Azure adapter was not connected to a real subscription during development, so no live Azure success is claimed.
+The Security & Audit Center still separates audit evidence, current policy evaluation, and case status. Phase 7 adds an AWS boundary: simulation or read-only boto3 discovery → timestamped cache → conservative identity-policy explanation → AWS Access UI. The AWS adapter was not connected to a real account during development, so no live AWS success is claimed.
 
 ## Important User Decisions
 
@@ -129,6 +140,9 @@ The Security & Audit Center still separates audit evidence, current policy evalu
 12. Azure live discovery is read-only and restricted to one explicitly configured resource group.
 13. `NOT GRANTED` is not represented as an Azure deny assignment; custom or conditional evidence produces `UNKNOWN`.
 14. The static-secret anti-pattern stores posture metadata only, never a credential value.
+15. AWS live discovery requires a configured 12-digit lab account, rejects root, scopes role inventory by IAM path, and probes only allowlisted S3 buckets.
+16. Cached AWS identity policies are teaching evidence, not a complete authorization oracle; external policy layers and request context stay explicit limitations.
+17. Raw CloudTrail event JSON and AWS credentials are never cached or displayed.
 
 ## Known Issues
 
@@ -140,7 +154,7 @@ The Security & Audit Center still separates audit evidence, current policy evalu
 
 **Description:** The managed Windows sandbox restricts cleanup of some Python-created temporary directories used internally by Streamlit's test framework.
 
-**Impact:** None on application behavior or assertions; all 61 tests passed across the dashboard and non-dashboard suites.
+**Impact:** None on application behavior or assertions; all 72 tests passed across the dashboard and non-dashboard suites.
 
 **Workaround:** Direct `TEMP`/`TMP` to an approved writable directory and remove inaccessible sandbox artifacts with appropriate workspace permission.
 
@@ -150,13 +164,13 @@ The Security & Audit Center still separates audit evidence, current policy evalu
 
 **Last Test Run:** 2026-09-10
 
-**Commands:** `python -m pytest -k "not dashboard"` and `python -m pytest tests/test_dashboard.py -vv`
+**Commands:** `python -m pytest -q` plus a live Streamlit health check
 
-**Result:** 61 passed, 0 failed (60 non-dashboard + 1 full dashboard traversal)
+**Result:** 72 passed, 0 failed (71 non-dashboard + 1 full dashboard traversal)
 
-**Coverage:** Phase 0–5 regression coverage plus Azure-only live guards, RBAC scope inheritance, management/data-plane separation, narrow allowed/not-granted access, honest unknown outcomes, managed-identity credential posture, tenant-checked ARM request translation, sanitized failures, Azure sync/cache counts, and all eight dashboard pages
+**Coverage:** Phase 0–6 regression coverage plus AWS-only live guards, account/root verification, read-only call shape, IAM/S3 scoping, policy wildcard and explicit-deny behavior, narrow allowed/not-granted access, STS credential posture, CloudTrail metadata, AWS sync/cache counts, and all nine dashboard pages
 
-**Dashboard Smoke Check:** Headless traversal rendered all eight pages and synchronized both simulated Entra and Azure directories; Streamlit started on local port 8504 and `/_stcore/health` returned `ok`
+**Dashboard Smoke Check:** Headless traversal rendered all nine pages and synchronized simulated Entra, Azure, and AWS data; Streamlit started on local port 8506 and `/_stcore/health` returned HTTP 200 `ok`
 
 ## Cloud Integration Status
 
@@ -165,18 +179,18 @@ The Security & Audit Center still separates audit evidence, current policy evalu
 | Microsoft Entra ID | SIMULATION COMPLETE / LIVE LAB READY, NOT VALIDATED |
 | Microsoft Graph | CONNECTOR IMPLEMENTED / NO LIVE CALL CLAIMED |
 | Azure | SIMULATION COMPLETE / READ-ONLY LIVE LAB READY, NOT VALIDATED |
-| AWS | NOT CONNECTED |
+| AWS | SIMULATION COMPLETE / READ-ONLY LIVE LAB READY, NOT VALIDATED |
 | Terraform | NOT CONFIGURED |
 | Docker | NOT CONFIGURED |
 
-`azure-identity` is installed for optional authentication. Tests use fake credentials/transports, dashboard tests use simulation, and no cloud resource was read or modified.
+`azure-identity` and `boto3` are declared for optional cloud authentication/discovery. Tests use fake credentials/SDK sessions, dashboard tests use simulation, and no cloud resource was read or modified.
 
 ## Last Relevant Git Commit
 
-**Commit:** `de7cb8b`
+**Commit:** pending Phase 7 milestone commit
 
-**Message:** `feat(phase-6): implement Azure identity and RBAC center`
+**Message:** `feat(phase-7): implement AWS IAM access center`
 
 ## Exact Next Recommended Task
 
-Wait for the project owner to validate the Phase 6 dashboard. If a dedicated Azure lab is available, perform a separately supervised read-only resource-group synchronization. Begin **Phase 7 — AWS IAM Integration** only after explicit approval; do not implement it automatically.
+Wait for the project owner to validate the Phase 7 dashboard. If a dedicated AWS lab is available, perform a separately supervised read-only synchronization with a least-privileged SSO/assume-role profile. Begin **Phase 8 — Terraform / Infrastructure as Code** only after explicit approval; do not implement it automatically.

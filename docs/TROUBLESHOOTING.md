@@ -566,3 +566,27 @@ Inspect the real role definition, condition expression, deny assignments, and En
 Match the managed identity principal ID—not application/client ID—to the role assignment. Verify role, target scope, workload attachment, correct token audience, and propagation. A valid token proves authentication; it does not grant resource authorization.
 
 ---
+
+# AWS IAM Connector Troubleshooting
+
+## LIVE_LAB is blocked or the account does not match
+
+Set `CILAMP_AWS_LAB_ENABLED=true` only for a dedicated lab and configure its exact 12-digit account ID. Verify the selected SSO/assume-role profile with `aws sts get-caller-identity`. CILAMP rejects both another account and any root caller.
+
+## IAM inventory is empty
+
+Confirm lab roles use the configured path (default `/cilamp/`) and that the discovery role can list/get roles and their attached/inline policy versions. Do not broaden to AdministratorAccess.
+
+## An S3 bucket is missing
+
+CILAMP deliberately avoids account-wide bucket listing. Add only the intended lab bucket name to `CILAMP_AWS_ALLOWED_BUCKETS` and grant the narrow metadata check. Object content is never read during synchronization.
+
+## CloudTrail is unavailable
+
+Verify the configured region, trail/event-history availability, and `cloudtrail:LookupEvents`. The rest of synchronization can succeed with a limitation; CILAMP does not fabricate events.
+
+## Cached decision differs from AWS
+
+Inspect bucket/resource policies, SCPs/RCPs, permissions boundaries, session policies, conditions, tags, region/account, exact ARN, and request context. The CILAMP view explains cached identity policies; AWS remains authoritative.
+
+---
