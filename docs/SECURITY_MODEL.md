@@ -498,3 +498,20 @@ No phase involving cloud/security is complete unless:
 - Application identity records contain metadata only. A service principal is not treated as a human user or as a credential.
 
 Minimum intended application permissions are `User.Read.All`, `GroupMember.Read.All`, and `Application.Read.All`. `AuditLog.Read.All` is optional. Enable `User.ReadWrite.All` and `GroupMember.ReadWrite.All` only for the dedicated lab if the write demonstration is required, with appropriate Entra directory roles for delegated operation. Role-assignable groups are outside the intended allowlist.
+
+---
+
+# 20. Phase 6 Azure RBAC and Managed Identity Controls
+
+- Azure live discovery is separately guarded and scoped to an explicit tenant, subscription, and resource group.
+- The ARM adapter performs read operations only. The dashboard cannot add, update, or remove Azure role assignments.
+- Authentication uses Azure CLI or a managed/workload identity through Azure Identity; the returned token tenant must match the configured lab tenant.
+- Access tokens, storage keys, connection strings, client secrets, Key Vault secret values, and certificates are never persisted or displayed.
+- Role assignments are evaluated at their recorded Azure scope. Narrow resource scope is preferred over resource-group or subscription scope.
+- Management-plane and data-plane access are distinct. `Reader` and `Owner` do not automatically imply blob-data or secret-value access.
+- The preferred workload path is application → managed identity → narrowly scoped Azure RBAC → resource.
+- The bad static-secret path is represented only by a posture label; no example credential is created.
+- `NOT GRANTED` means the known cached assignments contain no matching grant. It is not evidence of an Azure deny assignment.
+- Custom roles, conditions, deny assignments, and unexpanded group membership require live evaluation and are reported as limitations or `UNKNOWN`.
+
+For live discovery, grant only the resource-group visibility required to list resources and role assignments. Do not grant Owner, User Access Administrator, or subscription-wide write authority to make the demonstration easier.

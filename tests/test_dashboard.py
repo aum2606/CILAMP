@@ -61,6 +61,23 @@ def test_dashboard_renders_without_exceptions(monkeypatch) -> None:
         )
 
         next(item for item in dashboard.radio if item.label == "Navigate").set_value(
+            "Azure Access"
+        ).run(timeout=30)
+        assert not dashboard.exception
+        assert len(dashboard.tabs) == 7
+        assert any(metric.label == "Azure connection" for metric in dashboard.metric)
+        next(
+            button
+            for button in dashboard.button
+            if button.label == "Synchronize Azure RBAC"
+        ).click().run(timeout=30)
+        assert not dashboard.exception
+        assert any(
+            metric.label == "Resources in scope" and metric.value == "5"
+            for metric in dashboard.metric
+        )
+
+        next(item for item in dashboard.radio if item.label == "Navigate").set_value(
             "Access Matrix"
         ).run(timeout=20)
         assert not dashboard.exception

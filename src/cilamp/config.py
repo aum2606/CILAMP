@@ -24,6 +24,12 @@ class Settings:
     entra_writes_enabled: bool = False
     entra_allowed_user_domain: str = ""
     entra_allowed_group_ids: tuple[str, ...] = ()
+    azure_lab_enabled: bool = False
+    azure_tenant_id: str = ""
+    azure_subscription_id: str = ""
+    azure_subscription_label: str = "Simulation subscription"
+    azure_resource_group: str = "rg-cilamp-lab"
+    azure_auth_method: str = "AZURE_CLI"
 
 
 def _database_path(raw_path: str | None) -> Path:
@@ -43,15 +49,27 @@ def load_settings() -> Settings:
 
     lab_enabled = os.getenv("CILAMP_ENTRA_LAB_ENABLED", "false").strip().lower() == "true"
     tenant_id = os.getenv("CILAMP_ENTRA_TENANT_ID", "").strip()
-    if mode == "LIVE_LAB" and (not lab_enabled or not tenant_id):
+    azure_lab_enabled = (
+        os.getenv("CILAMP_AZURE_LAB_ENABLED", "false").strip().lower() == "true"
+    )
+    azure_tenant_id = os.getenv("CILAMP_AZURE_TENANT_ID", tenant_id).strip()
+    azure_subscription_id = os.getenv("CILAMP_AZURE_SUBSCRIPTION_ID", "").strip()
+    entra_ready = lab_enabled and bool(tenant_id)
+    azure_ready = azure_lab_enabled and bool(azure_tenant_id and azure_subscription_id)
+    if mode == "LIVE_LAB" and not (entra_ready or azure_ready):
         raise ValueError(
-            "LIVE_LAB requires CILAMP_ENTRA_LAB_ENABLED=true and an explicit "
-            "CILAMP_ENTRA_TENANT_ID for the dedicated lab tenant."
+            "LIVE_LAB requires an explicitly enabled Entra or Azure dedicated lab "
+            "with its tenant and subscription identifiers."
         )
 
     auth_method = os.getenv("CILAMP_ENTRA_AUTH_METHOD", "AZURE_CLI").strip().upper()
     if auth_method not in {"AZURE_CLI", "DEFAULT"}:
         raise ValueError("CILAMP_ENTRA_AUTH_METHOD must be AZURE_CLI or DEFAULT.")
+    azure_auth_method = os.getenv(
+        "CILAMP_AZURE_AUTH_METHOD", auth_method
+    ).strip().upper()
+    if azure_auth_method not in {"AZURE_CLI", "DEFAULT"}:
+        raise ValueError("CILAMP_AZURE_AUTH_METHOD must be AZURE_CLI or DEFAULT.")
 
     allowed_group_ids = tuple(
         item.strip()
@@ -77,4 +95,16 @@ def load_settings() -> Settings:
             "CILAMP_ENTRA_ALLOWED_USER_DOMAIN", ""
         ).strip().lower(),
         entra_allowed_group_ids=allowed_group_ids,
+        azure_lab_enabled=azure_lab_enabled,
+        azure_tenant_id=azure_tenant_id,
+        azure_subscription_id=azure_subscription_id,
+        azure_subscription_label=os.getenv(
+            "CILAMP_AZURE_SUBSCRIPTION_LABEL", "Simulation subscription"
+        ).strip()
+        or "Dedicated lab subscription",
+        azure_resource_group=os.getenv(
+            "CILAMP_AZURE_RESOURCE_GROUP", "rg-cilamp-lab"
+        ).strip()
+        or "rg-cilamp-lab",
+        azure_auth_method=azure_auth_method,
     )

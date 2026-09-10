@@ -371,7 +371,7 @@ If a feature is unavailable due to licensing:
 
 # Phase 6 — Azure Identity & RBAC
 
-**Status:** NOT STARTED
+**Status:** COMPLETE
 
 ## Goal
 
@@ -434,11 +434,11 @@ Create **Azure Access** page displaying:
 
 ## Acceptance Criteria
 
-- [ ] Azure resources are represented correctly.
-- [ ] Least privilege is demonstrated.
-- [ ] Managed identity concept is visible.
-- [ ] No sensitive credentials are stored.
-- [ ] Git milestone committed.
+- [x] Azure resources, identities, role definitions, assignments, and scope hierarchy are represented correctly in simulation and through a mocked ARM contract.
+- [x] Least privilege is demonstrated with management/data-plane separation and ALLOWED, NOT GRANTED, and UNKNOWN outcomes.
+- [x] Managed identity and credential-free workload access are visible.
+- [x] No sensitive credentials are stored; the bad pattern is metadata and explanation only.
+- [x] Git milestone committed.
 
 ---
 

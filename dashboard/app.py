@@ -15,6 +15,17 @@ from cilamp.access_review_service import (
     review_summary,
 )
 from cilamp.config import load_settings
+from cilamp.azure_policy import ACTION_LABELS, evaluate_azure_access
+from cilamp.azure_repository import (
+    get_azure_sync_state,
+    initialize_azure_store,
+    list_azure_identities,
+    list_azure_operations,
+    list_azure_resources,
+    list_azure_role_assignments,
+)
+from cilamp.azure_service import AzureSafetyError, synchronize_azure
+from cilamp.connectors.azure import AzureConnectorError
 from cilamp.connectors.entra import EntraConnectorError
 from cilamp.domain import RiskLevel
 from cilamp.database import check_database
@@ -116,6 +127,7 @@ settings = load_settings()
 try:
     initialize_organization(settings.database_path)
     initialize_entra_store(settings.database_path)
+    initialize_azure_store(settings.database_path)
 except Exception as error:
     st.error(
         "Organization data could not be initialized. "
@@ -138,14 +150,15 @@ page = st.sidebar.radio(
         "Access Review",
         "Security & Audit",
         "Microsoft Entra",
+        "Azure Access",
         "Access Matrix",
     ),
 )
 st.sidebar.markdown(f"**Mode:** `{settings.mode}`")
 st.sidebar.caption(
-    "Entra lab connector available"
+    "Cloud lab connectors are read-only by default"
     if settings.mode == "LIVE_LAB"
-    else "Cloud writes are simulated"
+    else "Cloud access is simulated"
 )
 
 st.markdown(
@@ -166,7 +179,7 @@ with phase_col:
     st.caption("CURRENT PHASE")
     st.markdown(
         f'<div class="context-note"><strong>{CURRENT_PHASE}</strong><br>'
-        "Entra integration is simulation-first; live lab access is explicitly guarded.</div>",
+        "Azure identity and RBAC are simulation-first; live discovery is explicitly guarded.</div>",
         unsafe_allow_html=True,
     )
 
@@ -216,6 +229,12 @@ def render_overview() -> None:
         "Application identities", entra_state.service_principal_count
     )
 
+    azure_state = get_azure_sync_state(settings.database_path)
+    azure_col, resources_col, assignments_col = st.columns(3)
+    azure_col.metric("Azure connector", azure_state.status)
+    resources_col.metric("Azure resources", azure_state.resource_count)
+    assignments_col.metric("Azure RBAC assignments", azure_state.assignment_count)
+
     chart_col, role_chart_col = st.columns(2)
     with chart_col:
         st.subheader("Department distribution")
@@ -252,8 +271,8 @@ def render_overview() -> None:
     with cloud_col:
         st.subheader("Cloud integration")
         st.info(
-            "Microsoft Entra ID, Azure, and AWS are **not connected**. "
-            "All identities and access shown here are fictional simulation data."
+            "Entra and Azure support simulation plus explicitly guarded lab connectors; "
+            "AWS is not connected. No live success is shown unless a provider call returns it."
         )
 
 
@@ -1229,10 +1248,16 @@ def render_microsoft_entra() -> None:
         else "Never",
     )
     if settings.mode == "LIVE_LAB":
-        st.warning(
-            "LIVE LAB MODE: reads target the configured tenant. Writes are "
-            f"{'enabled for allowlisted targets' if settings.entra_writes_enabled else 'disabled'}."
-        )
+        if settings.entra_lab_enabled:
+            st.warning(
+                "LIVE LAB MODE: reads target the configured Entra tenant. Writes are "
+                f"{'enabled for allowlisted targets' if settings.entra_writes_enabled else 'disabled'}."
+            )
+        else:
+            st.warning(
+                "The global mode is LIVE_LAB, but the Entra connector is disabled in "
+                "this Azure-only configuration."
+            )
     else:
         st.info("SIMULATION MODE: no Microsoft Graph request or cloud modification occurs.")
 
@@ -1466,6 +1491,250 @@ def _render_entra_writes(users, groups) -> None:
                 st.error(str(error))
 
 
+def render_azure_access() -> None:
+    st.header("Azure Identity & RBAC")
+    st.caption(
+        "Inspect who can do what, on which Azure scope. LIVE_LAB discovery is "
+        "read-only; simulation demonstrates least privilege without cloud changes."
+    )
+    if message := st.session_state.pop("azure_message", None):
+        st.success(message)
+    state = get_azure_sync_state(settings.database_path)
+    status_col, mode_col, subscription_col, sync_col = st.columns(4)
+    status_col.metric("Azure connection", state.status)
+    mode_col.metric("Mode", settings.mode)
+    subscription_col.metric("Subscription", settings.azure_subscription_label)
+    sync_col.metric(
+        "Last synchronization",
+        state.last_synced_at.strftime("%Y-%m-%d %H:%M UTC")
+        if state.last_synced_at
+        else "Never",
+    )
+    st.write(f"Resource-group boundary: **{settings.azure_resource_group}**")
+    if settings.mode == "LIVE_LAB":
+        st.warning(
+            "LIVE LAB MODE: Azure Resource Manager discovery is read-only and limited "
+            "to the configured resource group. This page cannot create role assignments."
+        )
+    else:
+        st.info("SIMULATION MODE: no Azure token request or resource operation occurs.")
+    if st.button("Synchronize Azure RBAC", type="primary", key="azure_sync"):
+        try:
+            correlation_id = synchronize_azure(settings)
+            st.session_state["azure_message"] = (
+                f"Azure RBAC synchronization completed · correlation {correlation_id}"
+            )
+            st.rerun()
+        except (AzureConnectorError, AzureSafetyError) as error:
+            st.error(str(error))
+
+    resources = list_azure_resources(settings.database_path)
+    identities = list_azure_identities(settings.database_path)
+    assignments = list_azure_role_assignments(settings.database_path)
+    operations = list_azure_operations(settings.database_path)
+    (
+        resources_tab,
+        identities_tab,
+        assignments_tab,
+        access_tab,
+        managed_tab,
+        patterns_tab,
+        operations_tab,
+    ) = st.tabs(
+        (
+            "Resources",
+            "Identities",
+            "RBAC Assignments",
+            "Effective Access",
+            "Managed Identities",
+            "Credential Patterns",
+            "Azure Operations",
+        )
+    )
+    with resources_tab:
+        st.metric("Resources in scope", len(resources))
+        st.dataframe(
+            [
+                {
+                    "Name": item.name,
+                    "Type": item.resource_type,
+                    "Resource group": item.resource_group,
+                    "Location": item.location,
+                    "Scope / resource ID": item.resource_id,
+                }
+                for item in resources
+            ],
+            width="stretch",
+            hide_index=True,
+        )
+        if not resources:
+            st.caption("Synchronize Azure RBAC to populate the display cache.")
+
+    with identities_tab:
+        st.metric("Security principals", len(identities))
+        st.dataframe(
+            [
+                {
+                    "Identity": item.display_name,
+                    "Type": item.identity_type,
+                    "Source": item.source_resource,
+                    "Credential posture": item.credential_mode,
+                }
+                for item in identities
+            ],
+            width="stretch",
+            hide_index=True,
+        )
+
+    with assignments_tab:
+        st.metric("Role assignments", len(assignments))
+        st.dataframe(
+            [
+                {
+                    "Principal": item.principal_name,
+                    "Principal type": item.principal_type,
+                    "Role": item.role_name,
+                    "Scope": item.scope,
+                }
+                for item in assignments
+            ],
+            width="stretch",
+            hide_index=True,
+        )
+        st.caption(
+            "Azure RBAC = security principal + role definition + scope. Child resources "
+            "inherit grants from applicable parent scopes."
+        )
+
+    with access_tab:
+        st.subheader("Allowed and not-granted access")
+        st.caption(
+            "NOT GRANTED means no cached role assignment grants the action. It is not a "
+            "claim that Azure has an explicit deny assignment."
+        )
+        if resources and identities:
+            principal_id = st.selectbox(
+                "Security principal",
+                tuple(item.principal_id for item in identities),
+                format_func=lambda identifier: next(
+                    f"{item.display_name} · {item.identity_type}"
+                    for item in identities
+                    if item.principal_id == identifier
+                ),
+                key="azure_access_principal",
+            )
+            resource_id = st.selectbox(
+                "Azure resource",
+                tuple(item.resource_id for item in resources),
+                format_func=lambda identifier: next(
+                    f"{item.name} · {item.resource_type}"
+                    for item in resources
+                    if item.resource_id == identifier
+                ),
+                key="azure_access_resource",
+            )
+            action = st.selectbox(
+                "Requested action",
+                tuple(ACTION_LABELS),
+                format_func=lambda value: ACTION_LABELS[value],
+                key="azure_access_action",
+            )
+            identity = next(item for item in identities if item.principal_id == principal_id)
+            resource = next(item for item in resources if item.resource_id == resource_id)
+            decision = evaluate_azure_access(
+                identity.principal_id,
+                identity.display_name,
+                resource,
+                action,
+                assignments,
+            )
+            if decision.decision == "ALLOWED":
+                st.success(f"ALLOWED — {decision.rationale}")
+            elif decision.decision == "UNKNOWN":
+                st.warning(f"UNKNOWN — {decision.rationale}")
+            else:
+                st.error(f"NOT GRANTED — {decision.rationale}")
+            st.write(
+                {
+                    "Identity": decision.principal_name,
+                    "Resource": decision.resource_name,
+                    "Action": ACTION_LABELS[decision.action],
+                    "Matched granting roles": list(decision.matched_roles),
+                }
+            )
+        else:
+            st.info("Synchronize first to evaluate effective access.")
+
+    with managed_tab:
+        managed = [
+            item for item in identities if "ManagedIdentity" in item.identity_type
+        ]
+        st.metric("Managed identities", len(managed))
+        st.dataframe(
+            [
+                {
+                    "Managed identity": item.display_name,
+                    "Type": item.identity_type,
+                    "Attached/source resource": item.source_resource,
+                    "Credential posture": item.credential_mode,
+                    "Assigned roles": ", ".join(
+                        sorted(
+                            assignment.role_name
+                            for assignment in assignments
+                            if assignment.principal_id == item.principal_id
+                        )
+                    ),
+                }
+                for item in managed
+            ],
+            width="stretch",
+            hide_index=True,
+        )
+        st.info(
+            "A managed identity obtains Entra tokens for its Azure workload. Developers "
+            "do not receive or rotate an application password, but RBAC is still required."
+        )
+
+    with patterns_tab:
+        bad_col, good_col = st.columns(2)
+        with bad_col:
+            st.error("BAD PATTERN — simulated metadata only")
+            st.code("Application\n  ↓\nHardcoded secret\n  ↓\nAzure resource")
+            st.write(
+                "Secret leakage, manual rotation, and unclear ownership create avoidable risk. "
+                "CILAMP stores no example secret value."
+            )
+        with good_col:
+            st.success("PREFERRED PATTERN")
+            st.code(
+                "Application\n  ↓\nManaged identity\n  ↓\nAzure RBAC at narrow scope\n  ↓\nAzure resource"
+            )
+            st.write(
+                "The platform supplies the workload identity; the role and scope provide "
+                "only the resource actions the application needs."
+            )
+
+    with operations_tab:
+        for limitation in state.limitations:
+            st.warning(limitation)
+        st.dataframe(
+            [
+                {
+                    "Time": item.timestamp.isoformat(),
+                    "Mode": item.mode,
+                    "Action": item.action,
+                    "Target": item.target,
+                    "Result": item.result,
+                    "Details": item.details,
+                    "Correlation ID": item.correlation_id,
+                }
+                for item in operations
+            ],
+            width="stretch",
+            hide_index=True,
+        )
+
+
 if page == "Overview":
     render_overview()
 elif page == "Organization Explorer":
@@ -1478,6 +1747,8 @@ elif page == "Security & Audit":
     render_security_audit()
 elif page == "Microsoft Entra":
     render_microsoft_entra()
+elif page == "Azure Access":
+    render_azure_access()
 else:
     render_access_matrix()
 
@@ -1491,4 +1762,4 @@ with st.expander("Runtime details"):
         }
     )
 
-st.caption("CILAMP Phase 5 · Cloud/IAM-first · Simulation-first Entra lab integration")
+st.caption("CILAMP Phase 6 · Cloud/IAM-first · Azure identity and RBAC")

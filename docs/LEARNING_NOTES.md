@@ -834,3 +834,57 @@ For a real dedicated lab, configure the non-secret controls from `.env.example`,
 “I integrated Microsoft Entra through a provider interface so the JML and RBAC logic remains cloud-independent. The default adapter is a deterministic simulation; the live adapter uses Azure Identity and Microsoft Graph against an explicitly selected lab tenant. Reads cache users, groups, memberships, service principals, and optional audit data for the dashboard. Live writes are disabled by default and constrained by confirmation, allowed UPN domain, and group allowlist. Provider failures remain truthful audit records, and no passwords, client secrets, or tokens are persisted.”
 
 ---
+
+# Phase 6 Learning Note — Azure RBAC and Managed Identity
+
+## What it is
+
+Azure RBAC controls which security principal can perform which actions at which Azure scope. A role assignment joins three things: a user/group/service principal/managed identity, a role definition, and a scope such as subscription, resource group, or individual resource.
+
+## Why enterprises use it
+
+Enterprises use Azure RBAC to avoid shared administrator credentials and limit the blast radius of compromise. Scope lets the same role be powerful only where it is needed. Data-plane roles protect data operations separately from management-plane resource configuration.
+
+## Where it is implemented
+
+- `src/cilamp/connectors/azure/simulation.py`: deterministic resource/RBAC lab.
+- `src/cilamp/connectors/azure/arm.py`: tenant-checked, read-only ARM discovery.
+- `src/cilamp/azure_policy.py`: scope and action evaluation.
+- `src/cilamp/azure_repository.py`: timestamped Azure cache and operation evidence.
+- `src/cilamp/azure_service.py`: simulation/live routing and failure recording.
+- `dashboard/app.py`: Azure Access visual control center.
+
+## How to demonstrate it manually
+
+1. Open **Azure Access** in `SIMULATION` mode and select **Synchronize Azure RBAC**.
+2. Show the resource group, two storage accounts, Key Vault, and application resource.
+3. Show that the Developers group has `Storage Blob Data Reader` only on `stcilampdev`.
+4. Prove blob read is allowed while blob write, archive storage read, and RBAC administration are not granted.
+5. Select `reporting-api-mi` and show Key Vault secret read allowed but role-assignment management not granted.
+6. Compare the bad hardcoded-secret diagram with the managed-identity path.
+7. Show the synchronization result and correlation ID under **Azure Operations**.
+
+## What you should personally understand
+
+- Azure RBAC answers “who, can do what, at which scope.”
+- A role definition lists permitted actions; a role assignment attaches it to a principal and scope.
+- Parent-scope permissions can be inherited by child resources, so narrow scopes reduce blast radius.
+- Azure `Reader` is management-plane visibility and does not automatically allow reading blob content or Key Vault secret values.
+- A managed identity is a workload identity whose credentials are managed by Azure. It still needs RBAC authorization.
+- No matching allow is “not granted”; an explicit deny assignment is a separate Azure object.
+- Custom roles, conditions, deny assignments, or unresolved groups require more provider evidence, so `UNKNOWN` is the honest result.
+
+## Common troubleshooting
+
+- HTTP 403 during sync: verify read access at the configured resource group and permission to read role assignments; do not default to Owner.
+- Wrong tenant: verify Azure CLI context, configured tenant/subscription, and the token tenant claim.
+- Empty inventory: verify exact resource-group spelling and subscription context.
+- Blob access missing despite Reader: use a narrowly scoped data-plane role such as Storage Blob Data Reader.
+- Managed identity access failure: match the principal ID, role, scope, token audience, and propagation state.
+- `UNKNOWN`: inspect custom-role actions, conditions, deny assignments, and group expansion directly in Azure.
+
+## Interview explanation
+
+“I modeled Azure RBAC as a security principal, role definition, and scope rather than merely listing role names. The simulation demonstrates inheritance, narrow resource access, management/data-plane separation, and managed identities replacing application secrets. The optional live adapter performs tenant-verified, resource-group-scoped ARM reads only. The evaluator reports allowed, not granted, or unknown so custom roles and conditions are not misrepresented.”
+
+---

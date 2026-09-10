@@ -507,3 +507,39 @@ The local cache can become stale and is not a transactional mirror of Entra. Use
 ## Consequences
 
 Operators must synchronize before selecting targets and reconcile after writes. Provider failures are recorded as failures. Future lifecycle-to-Entra automation must consume approved domain intent through this boundary and add idempotency/partial-failure handling rather than bypassing it.
+
+---
+
+# ADR-018 — Model Azure RBAC as Principal, Role, and Scope with Read-Only Discovery
+
+**Date:** 2026-09-10
+
+**Status:** ACCEPTED
+
+## Context
+
+Phase 6 must teach Azure resource authorization and workload identity without turning the dashboard into a privileged role-assignment tool or confusing Entra directory roles with Azure resource roles.
+
+## Options Considered
+
+1. Show a static role table with no scope evaluation.
+2. Let the dashboard create and delete Azure role assignments.
+3. Build a deterministic authorization lab plus an optional read-only ARM discovery adapter and a provider-independent scope/action evaluator.
+
+## Decision
+
+Use option 3. The simulation includes narrow storage and Key Vault data roles, human groups, a managed identity, and a legacy service-principal anti-pattern containing metadata only. Live mode discovers a single configured resource group using the ARM `/.default` audience and validates the token tenant.
+
+The evaluator returns `ALLOWED` only for a recognized granting role at an applicable parent/resource scope, `NOT GRANTED` when recognized assignments do not grant the action, and `UNKNOWN` for custom, unresolved, or conditional roles.
+
+## Reason
+
+This makes the Azure RBAC formula visible—who, what role, and where—while preserving least privilege and truthful uncertainty. It also demonstrates why a management-plane Reader assignment does not automatically read blob or Key Vault secret data.
+
+## Trade-offs
+
+The local evaluator is explanatory rather than an Azure authorization oracle. It does not expand Entra group membership, process deny assignments, or fully interpret custom-role actions/conditions. Live Azure remains authoritative.
+
+## Consequences
+
+The dashboard contains no Azure RBAC writes. A future provisioning phase must use reviewed infrastructure-as-code or a separately approved change workflow. Unknown provider semantics must stay `UNKNOWN`, never be converted into a convenient allow or deny.

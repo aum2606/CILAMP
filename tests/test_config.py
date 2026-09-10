@@ -26,7 +26,7 @@ def test_live_mode_requires_explicit_lab_guard(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.delenv("CILAMP_ENTRA_LAB_ENABLED", raising=False)
     monkeypatch.delenv("CILAMP_ENTRA_TENANT_ID", raising=False)
 
-    with pytest.raises(ValueError, match="dedicated lab tenant"):
+    with pytest.raises(ValueError, match="dedicated lab"):
         load_settings()
 
 
@@ -47,3 +47,24 @@ def test_live_mode_loads_non_secret_safety_controls(
     assert settings.entra_writes_enabled
     assert settings.entra_allowed_user_domain == "lab.example"
     assert settings.entra_allowed_group_ids == ("group-1", "group-2")
+
+
+def test_azure_only_live_lab_requires_subscription_and_keeps_entra_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CILAMP_MODE", "LIVE_LAB")
+    monkeypatch.setenv("CILAMP_ENTRA_LAB_ENABLED", "false")
+    monkeypatch.delenv("CILAMP_ENTRA_TENANT_ID", raising=False)
+    monkeypatch.setenv("CILAMP_AZURE_LAB_ENABLED", "true")
+    monkeypatch.setenv("CILAMP_AZURE_TENANT_ID", "azure-lab-tenant")
+    monkeypatch.setenv("CILAMP_AZURE_SUBSCRIPTION_ID", "azure-lab-subscription")
+    monkeypatch.setenv("CILAMP_AZURE_RESOURCE_GROUP", "rg-cilamp-test")
+
+    settings = load_settings()
+
+    assert settings.mode == "LIVE_LAB"
+    assert settings.azure_lab_enabled
+    assert settings.azure_tenant_id == "azure-lab-tenant"
+    assert settings.azure_subscription_id == "azure-lab-subscription"
+    assert settings.azure_resource_group == "rg-cilamp-test"
+    assert not settings.entra_lab_enabled

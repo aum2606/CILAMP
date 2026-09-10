@@ -44,6 +44,10 @@ class EntraSafetyError(RuntimeError):
 def connector_for(settings: Settings) -> EntraConnector:
     if settings.mode == "SIMULATION":
         return SimulationEntraConnector(settings.database_path)
+    if not settings.entra_lab_enabled or not settings.entra_tenant_id:
+        raise EntraSafetyError(
+            "The Entra connector is disabled for this LIVE_LAB configuration."
+        )
     return MicrosoftGraphConnector(
         settings.entra_tenant_id, settings.entra_auth_method
     )

@@ -640,3 +640,33 @@ Schema version 5 adds cached users, groups, memberships, service principals, dir
 Live reads use explicit Graph v1.0 endpoints. User profile and membership writes are deliberately narrow: the operator must enable live writes outside the UI, select a synchronized identity, remain inside the configured lab UPN domain, target an allowlisted group where applicable, and confirm the action in the dashboard. Creating users is not automated because it would require handling initial credentials; this phase favors safe selected-user updates.
 
 The cache is a display/investigation projection, not an IAM source of truth. A failed synchronization preserves truthful failure history and never becomes a simulated success. Directory audit retrieval is optional because tenant roles, consent, retention, and licensing can limit availability.
+
+---
+
+# 15. Phase 6 Azure Identity and RBAC
+
+```text
+Azure authorization intent / investigation
+                  │
+          Azure service boundary
+             ┌────┴────┐
+             │         │
+       SIMULATION   LIVE_LAB read-only
+             │         │
+      fixed lab model  Azure Resource Manager
+             └────┬────┘
+                  ▼
+ resources + principals + role assignments + scopes
+                  │
+      provider-independent access evaluator
+                  │
+       ALLOWED / NOT GRANTED / UNKNOWN
+                  │
+        SQLite cache + Azure Access UI
+```
+
+`src/cilamp/connectors/azure/` contains the simulation and Azure Resource Manager adapters. Live discovery is restricted to one configured resource group and performs GET requests only for resources, user-assigned/system-assigned managed identity metadata, role definitions, and applicable role assignments. Tokens are acquired externally through Azure Identity, tenant-checked in memory, and never stored.
+
+`azure_policy.py` explains effective access from principal + role + applicable scope. The simulation catalog distinguishes management-plane `Reader`/`Owner` from data-plane roles such as `Storage Blob Data Reader` and `Key Vault Secrets User`. Lack of a known grant is reported as `NOT GRANTED`, not as an explicit Azure deny. Custom, unknown, or conditional roles produce `UNKNOWN` so the local model does not fabricate certainty.
+
+Schema version 6 adds Azure resources, identities, role assignments, synchronization state, and operation history. These tables are a timestamped investigation/display projection, not Azure's enforcement point.

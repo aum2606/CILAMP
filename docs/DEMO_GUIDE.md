@@ -390,3 +390,22 @@ Technical-interviewer proof points: provider isolation, `/.default` scope, least
 Do not describe mocked tests as a live tenant validation. If the audit endpoint is unavailable, demonstrate the limitation message and explain the required permission/role rather than claiming success.
 
 ---
+
+# Phase 6 — Azure Identity and RBAC Demo
+
+1. Start in `SIMULATION` and open **Azure Access**.
+2. Synchronize Azure RBAC and point out the resource-group boundary and last synchronization time.
+3. In **RBAC Assignments**, explain principal + role + scope.
+4. Demonstrate Developers → `stcilampdev` → blob read = `ALLOWED`; blob write and archive read = `NOT GRANTED`.
+5. Demonstrate `reporting-api-mi` → Key Vault → secret read = `ALLOWED`; RBAC management = `NOT GRANTED`.
+6. Explain under **Managed Identities** that Azure supplies workload authentication while RBAC supplies authorization.
+7. Contrast the static-secret anti-pattern with managed identity at narrow scope.
+8. Finish with **Azure Operations** and its correlation ID.
+
+Recruiter summary: “CILAMP demonstrates Azure resource authorization, least-privilege scope, management/data-plane separation, and credential-free workload identity through a simulation-first control center.”
+
+Technical-interviewer proof points: resource hierarchy, inherited scope, role-assignment anatomy, managed identity, no-secret design, read-only ARM discovery, token-tenant validation, sanitized provider errors, and honest `UNKNOWN` outcomes.
+
+Do not describe the local evaluator as Azure's enforcement engine or claim a live Azure result unless an actual lab synchronization succeeded.
+
+---

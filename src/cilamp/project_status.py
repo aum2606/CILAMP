@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 PROJECT_NAME = "Cloud Identity Lifecycle & Access Management Platform"
 PROJECT_SHORT_NAME = "CILAMP"
-CURRENT_PHASE = "Phase 5 — Microsoft Entra ID Integration"
+CURRENT_PHASE = "Phase 6 — Azure Identity & RBAC"
 
 
 @dataclass(frozen=True)
@@ -23,16 +23,16 @@ MODULE_STATUSES = (
     ModuleStatus("RBAC", "Complete", "Role-based access and least-privilege checks"),
     ModuleStatus("Audit", "Complete", "Security events, investigations, and audit history"),
     ModuleStatus("Entra ID", "Complete", "Simulation and guarded Microsoft Graph lab connector"),
-    ModuleStatus("Azure", "Not Connected", "Azure RBAC and workload identity"),
+    ModuleStatus("Azure", "Complete", "Azure resource scopes, RBAC, and managed identities"),
     ModuleStatus("AWS", "Not Connected", "AWS IAM roles and policies"),
     ModuleStatus("Terraform", "Not Started", "Infrastructure as Code representation"),
 )
 
 
 RECENT_MILESTONES = (
+    "Azure resource, RBAC scope, and effective-access center implemented",
+    "Managed identity and credential-free workload pattern demonstrated",
     "Microsoft Entra simulation and guarded live-lab connector implemented",
-    "Entra users, groups, memberships, service principals, and audit cache added",
-    "Security & Audit Center and troubleshooting workflows implemented",
 )
 
 

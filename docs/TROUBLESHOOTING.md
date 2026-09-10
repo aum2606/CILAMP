@@ -538,3 +538,31 @@ Directory audits use a separate endpoint and may require `AuditLog.Read.All`, a 
 Microsoft Entra can exhibit replication delay. Wait briefly, refresh the selected membership or synchronize again, and compare the new Entra operation result. The local cache is only as fresh as its displayed synchronization time.
 
 ---
+
+# Azure Resource and RBAC Troubleshooting
+
+## Azure LIVE_LAB discovery is blocked
+
+Confirm the target is a dedicated lab, then provide `CILAMP_AZURE_LAB_ENABLED=true`, tenant ID, subscription ID, subscription label, and exact resource-group name. Entra and Azure integration guards are independent even though they share the global mode.
+
+## ARM returns HTTP 403
+
+1. Verify `az account show` points to the intended tenant and subscription without copying tokens into logs.
+2. Confirm the operator can read the configured resource group.
+3. Confirm permission to read role assignments and role definitions at the required scope.
+4. Avoid solving the issue with Owner or subscription-wide write permissions.
+5. Retry synchronization and correlate the failure under **Azure Operations**.
+
+## Management-plane read works but blob or secret access fails
+
+Azure `Reader` sees configuration but does not grant data-plane operations. Check for `Storage Blob Data Reader`, `Key Vault Secrets User`, or another narrowly appropriate data role on the exact scope, then account for propagation delay.
+
+## Effective access says UNKNOWN
+
+Inspect the real role definition, condition expression, deny assignments, and Entra group membership. CILAMP refuses to infer custom or conditional authorization from incomplete evidence.
+
+## Managed identity has no access
+
+Match the managed identity principal ID—not application/client ID—to the role assignment. Verify role, target scope, workload attachment, correct token audience, and propagation. A valid token proves authentication; it does not grant resource authorization.
+
+---
