@@ -173,7 +173,7 @@ The Security & Audit Center still separates audit evidence, current policy evalu
 
 ## Last Relevant Git Commit
 
-**Commit:** Pending Phase 6 milestone commit at the time of this state update
+**Commit:** `de7cb8b`
 
 **Message:** `feat(phase-6): implement Azure identity and RBAC center`
 
