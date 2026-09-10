@@ -187,7 +187,7 @@ The Security & Audit Center still separates audit evidence, current policy evalu
 
 ## Last Relevant Git Commit
 
-**Commit:** pending Phase 7 milestone commit
+**Commit:** `ba9c909`
 
 **Message:** `feat(phase-7): implement AWS IAM access center`
 
