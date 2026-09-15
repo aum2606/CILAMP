@@ -77,7 +77,10 @@ st.set_page_config(
     page_title="IAM ConCen | AWS Identity & Access Center",
     page_icon="⚡",
     layout="wide",
-    initial_sidebar_state="expanded",# Custom Theme-Aware CSS Design System
+    initial_sidebar_state="expanded",
+)
+
+# Custom Theme-Aware CSS Design System
 st.markdown(
     """
     <style>
@@ -343,7 +346,6 @@ st.markdown(
     </style>
     """,
     unsafe_allow_html=True,
-)e,
 )
 
 settings = load_settings()
