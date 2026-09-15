@@ -46,7 +46,7 @@ def generate_employees() -> tuple[Employee, ...]:
                 Employee(
                     employee_id=employee_id,
                     display_name=f"{first_name} {last_name}",
-                    email=f"{first_name.lower()}.{last_name.lower()}.{sequence:04d}@example.cilamp",
+                    email=f"{first_name.lower()}.{last_name.lower()}.{sequence:04d}@example.iamconcen",
                     department=role.department,
                     job_role=role.name,
                     status=EmployeeStatus.ACTIVE,

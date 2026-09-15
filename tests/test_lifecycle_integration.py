@@ -127,7 +127,7 @@ def test_duplicate_joiner_and_disabled_mover_are_rejected(
         preview_joiner(
             lifecycle_database,
             "Duplicate Example",
-            "aarav.anderson.0001@example.cilamp",
+            "aarav.anderson.0001@example.iamconcen",
             "Developer",
             "Duplicate",
         )

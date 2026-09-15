@@ -37,6 +37,6 @@ def test_cached_aws_snapshot_evaluates_effective_access(settings) -> None:
 
 
 def test_live_connector_requires_aws_specific_guard(settings) -> None:
-    live = Settings(mode="LIVE_LAB", database_path=settings.database_path, entra_lab_enabled=True, entra_tenant_id="lab", aws_lab_enabled=False)
+    live = Settings(mode="LIVE_LAB", database_path=settings.database_path, aws_lab_enabled=False)
     with pytest.raises(AwsSafetyError, match="disabled"):
         aws_connector_for(live)

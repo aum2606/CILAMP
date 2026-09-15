@@ -1,8 +1,8 @@
-# CILAMP Agent Instructions
+# IAM ConCen Agent Instructions
 
 ## Mission
 
-CILAMP is a Cloud/IAM-first portfolio project. Software supports identity lifecycle, authorization, cloud security, operations, and learning; it must not become a generic full-stack application.
+IAM ConCen is an AWS IAM-first portfolio project. Software supports identity lifecycle, authorization, cloud security, operations, and learning; it must not become a generic full-stack application.
 
 ## Required workflow
 
@@ -24,7 +24,7 @@ Before completing meaningful work:
 ## Architecture boundaries
 
 - Keep lifecycle and policy logic provider-independent.
-- Put Microsoft Entra, Azure, and AWS API behavior behind connectors.
+- Put AWS API behavior behind connectors.
 - Use Streamlit as the visible control center for every phase.
 - Default to `SIMULATION`; live lab writes require a later approved phase and explicit confirmation.
 - Prefer Python, SQLite, pytest, PowerShell, and later narrowly justified Terraform/Docker.

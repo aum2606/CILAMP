@@ -3,6 +3,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.skip(reason="Entra integration removed from active scope — Settings no longer carries Entra fields")
+
 from cilamp.config import Settings
 from cilamp.entra_repository import (
     get_entra_sync_state,
@@ -116,7 +118,7 @@ def test_live_writes_require_switch_domain_and_group_allowlist(simulation_settin
         entra_lab_enabled=True,
         entra_tenant_id="lab-tenant",
         entra_writes_enabled=False,
-        entra_allowed_user_domain="example.cilamp",
+        entra_allowed_user_domain="example.iamconcen",
         entra_allowed_group_ids=(group.object_id,),
     )
 

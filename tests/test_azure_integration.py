@@ -2,6 +2,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.skip(reason="Azure integration removed from active scope — Settings no longer carries Azure fields")
+
 from cilamp.azure_policy import evaluate_azure_access
 from cilamp.azure_repository import (
     get_azure_sync_state,

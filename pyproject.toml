@@ -4,12 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cilamp"
-version = "0.7.0"
-description = "Cloud Identity Lifecycle & Access Management Platform"
+version = "0.8.0"
+description = "IAM ConCen — AWS Identity & Access Management Command Center"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "azure-identity>=1.25,<2",
     "boto3>=1.40,<2",
     "streamlit>=1.41,<2",
 ]

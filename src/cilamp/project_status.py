@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
-PROJECT_NAME = "Cloud Identity Lifecycle & Access Management Platform"
-PROJECT_SHORT_NAME = "CILAMP"
+PROJECT_NAME = "IAM Command Center"
+PROJECT_SHORT_NAME = "IAM ConCen"
 CURRENT_PHASE = "Phase 7 — AWS IAM Integration"
 
 
@@ -22,17 +22,15 @@ MODULE_STATUSES = (
     ModuleStatus("JML Engine", "Complete", "Joiner, Mover, and Leaver workflows"),
     ModuleStatus("RBAC", "Complete", "Role-based access and least-privilege checks"),
     ModuleStatus("Audit", "Complete", "Security events, investigations, and audit history"),
-    ModuleStatus("Entra ID", "Complete", "Simulation and guarded Microsoft Graph lab connector"),
-    ModuleStatus("Azure", "Complete", "Azure resource scopes, RBAC, and managed identities"),
-    ModuleStatus("AWS", "Complete", "AWS IAM roles, policies, STS, and CloudTrail"),
+    ModuleStatus("AWS IAM Integration", "Complete", "AWS IAM roles, policies, STS, and CloudTrail"),
     ModuleStatus("Terraform", "Not Started", "Infrastructure as Code representation"),
 )
 
 
 RECENT_MILESTONES = (
     "AWS IAM roles, policy evaluation, STS, S3, and CloudTrail center implemented",
-    "Azure resource, RBAC scope, and effective-access center implemented",
-    "Managed identity and credential-free workload pattern demonstrated",
+    "AWS account live integration and least-privilege read discovery active",
+    "Full Joiner, Mover, Leaver identity lifecycle management active",
 )
 
 
